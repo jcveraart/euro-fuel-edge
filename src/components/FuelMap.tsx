@@ -88,7 +88,7 @@ export function FuelMap({
   return (
     <MapContainer
       center={center}
-      zoom={7}
+      zoom={8}
       className="h-full w-full"
       zoomControl={false}
     >
