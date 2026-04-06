@@ -25,6 +25,7 @@ interface DashboardSidebarProps {
   route: RouteData | null;
   routeLoading: boolean;
   reachableCount: number;
+  stationsCount: number;
   hasLocation: boolean;
   stationsLoading: boolean;
 }
@@ -45,6 +46,7 @@ export function DashboardSidebar({
   route,
   routeLoading,
   reachableCount,
+  stationsCount,
   hasLocation,
   stationsLoading,
 }: DashboardSidebarProps) {
@@ -106,7 +108,8 @@ export function DashboardSidebar({
   // Fuel level color
   const tankColor = currentTankPercent <= 15 ? 'text-red-500' : currentTankPercent <= 30 ? 'text-yellow-500' : 'text-profit';
 
-  const noReachableStations = hasLocation && reachableCount === 0;
+  const noStationsFound = hasLocation && !stationsLoading && stationsCount === 0;
+  const noReachableStations = hasLocation && !stationsLoading && stationsCount > 0 && reachableCount === 0;
   const noLocation = !hasLocation;
 
   return (
@@ -228,8 +231,18 @@ export function DashboardSidebar({
         </div>
       )}
 
+      {/* Error: no stations found near location */}
+      {noStationsFound && (
+        <div className="rounded-lg border border-yellow-500/30 bg-yellow-500/10 p-3">
+          <p className="flex items-center gap-2 text-xs font-semibold text-yellow-500">
+            <AlertTriangle className="h-4 w-4 shrink-0" />
+            Geen Duitse stations gevonden binnen 25 km. Probeer een andere locatie.
+          </p>
+        </div>
+      )}
+
       {/* Error: can't reach any station */}
-      {noReachableStations && !stationsLoading && (
+      {noReachableStations && (
         <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-3">
           <p className="flex items-center gap-2 text-xs font-semibold text-red-500">
             <AlertTriangle className="h-4 w-4 shrink-0" />

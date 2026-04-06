@@ -40,7 +40,7 @@ export default function Dashboard() {
     setBestStation(null);
     setRoute(null);
 
-    fetchGermanStations(userLocation.lat, userLocation.lng, 30, fuelType)
+    fetchGermanStations(userLocation.lat, userLocation.lng, 25, fuelType)
       .then((results) => setStations(results))
       .finally(() => setLoading(false));
   }, [userLocation, fuelType]);
@@ -121,6 +121,7 @@ export default function Dashboard() {
           route={route}
           routeLoading={routeLoading}
           reachableCount={reachableCount}
+          stationsCount={stations.length}
           hasLocation={!!userLocation}
           stationsLoading={loading}
         />
