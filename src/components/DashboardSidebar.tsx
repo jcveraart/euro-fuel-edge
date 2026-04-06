@@ -1,10 +1,11 @@
 import { useState, useCallback } from 'react';
-import { Search, Car, Fuel, MapPin, Loader2, Share2 } from 'lucide-react';
+import { Search, Car, Fuel, Loader2, Share2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Slider } from '@/components/ui/slider';
 import { Label } from '@/components/ui/label';
-import { fetchRDWData, fetchRDWFuel, geocodeAddress, DEFAULT_PRICES } from '@/lib/api';
+import { AddressAutocomplete } from '@/components/AddressAutocomplete';
+import { fetchRDWData, fetchRDWFuel, DEFAULT_PRICES } from '@/lib/api';
 import type { VehicleData } from '@/lib/calculations';
 import { toast } from 'sonner';
 
