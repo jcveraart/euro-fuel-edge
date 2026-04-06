@@ -71,7 +71,7 @@ export function FuelMap({
 
   const center: [number, number] = safeUserLocation
     ? [safeUserLocation.lat, safeUserLocation.lng]
-    : [51.5, 5.8]; // Default: near Dutch-German border
+    : [52.2, 5.5]; // Default: center of the Netherlands
 
   const stationsWithProfit = useMemo(() => {
     return stations
@@ -88,7 +88,7 @@ export function FuelMap({
   return (
     <MapContainer
       center={center}
-      zoom={9}
+      zoom={7}
       className="h-full w-full"
       zoomControl={false}
     >
