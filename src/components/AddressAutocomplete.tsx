@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { MapPin, Loader2 } from 'lucide-react';
+import { MapPin, Loader2, LocateFixed } from 'lucide-react';
 import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 import { geocodeSuggestions, type GeocodeSuggestion } from '@/lib/api';
 
 interface AddressAutocompleteProps {
@@ -12,8 +13,37 @@ export function AddressAutocomplete({ onSelect }: AddressAutocompleteProps) {
   const [suggestions, setSuggestions] = useState<GeocodeSuggestion[]>([]);
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
+  const [geoLoading, setGeoLoading] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  const useMyLocation = useCallback(() => {
+    if (!navigator.geolocation) return;
+    setGeoLoading(true);
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const { latitude, longitude } = pos.coords;
+        // Reverse geocode to get a display name
+        try {
+          const res = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`,
+            { headers: { 'User-Agent': 'GrensTankerPro/1.0' } }
+          );
+          const data = await res.json();
+          const display = data.display_name || `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
+          const short = display.split(',').slice(0, 2).join(',');
+          setQuery(short.trim());
+          onSelect({ lat: latitude, lng: longitude, display });
+        } catch {
+          setQuery(`${latitude.toFixed(4)}, ${longitude.toFixed(4)}`);
+          onSelect({ lat: latitude, lng: longitude, display: `${latitude.toFixed(4)}, ${longitude.toFixed(4)}` });
+        }
+        setGeoLoading(false);
+      },
+      () => setGeoLoading(false),
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  }, [onSelect]);
 
   const fetchSuggestions = useCallback(async (q: string) => {
     if (q.trim().length < 2) {
@@ -54,16 +84,27 @@ export function AddressAutocomplete({ onSelect }: AddressAutocompleteProps) {
 
   return (
     <div ref={containerRef} className="relative">
-      <div className="relative">
-        <Input
-          placeholder="Bijv. Maastricht of 6211"
-          value={query}
-          onChange={(e) => handleChange(e.target.value)}
-          className="pr-8 text-sm"
-        />
-        {loading && (
-          <Loader2 className="absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-muted-foreground" />
-        )}
+      <div className="flex gap-2">
+        <div className="relative flex-1">
+          <Input
+            placeholder="Bijv. Maastricht of 6211"
+            value={query}
+            onChange={(e) => handleChange(e.target.value)}
+            className="pr-8 text-sm"
+          />
+          {loading && (
+            <Loader2 className="absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-muted-foreground" />
+          )}
+        </div>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={useMyLocation}
+          disabled={geoLoading}
+          title="Gebruik mijn locatie"
+        >
+          {geoLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <LocateFixed className="h-4 w-4" />}
+        </Button>
       </div>
 
       {open && suggestions.length > 0 && (
