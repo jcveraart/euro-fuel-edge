@@ -6,7 +6,7 @@ export async function fetchRDWData(kenteken: string): Promise<Partial<VehicleDat
   try {
     const clean = kenteken.replace(/[-\s]/g, '').toUpperCase();
     const res = await fetch(
-      `https://opendata.rdw.nl/resource/m9gs-jnhu.json?kenteken=${clean}`
+      `https://opendata.rdw.nl/resource/m9d7-ebf2.json?kenteken=${clean}`
     );
     if (!res.ok) return null;
     const data = await res.json();
@@ -17,7 +17,7 @@ export async function fetchRDWData(kenteken: string): Promise<Partial<VehicleDat
       kenteken: clean,
       merk: vehicle.merk || 'Onbekend',
       model: vehicle.handelsbenaming || 'Onbekend',
-      brandstof: vehicle.eerste_kleur || 'Benzine',
+      brandstof: vehicle.brandstof_omschrijving || 'Benzine',
     };
   } catch {
     return null;
