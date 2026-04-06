@@ -33,9 +33,7 @@ export function DashboardSidebar({
   bestStation,
 }: DashboardSidebarProps) {
   const [kenteken, setKenteken] = useState('');
-  const [address, setAddress] = useState('');
   const [loadingKenteken, setLoadingKenteken] = useState(false);
-  const [loadingAddress, setLoadingAddress] = useState(false);
 
   const lookupKenteken = useCallback(async () => {
     if (!kenteken.trim()) return;
