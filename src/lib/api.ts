@@ -86,9 +86,13 @@ export async function geocodeAddress(
     if (!res.ok) return null;
     const data = await res.json();
     if (!data.length) return null;
+    const lat = parseFloat(data[0].lat);
+    const lng = parseFloat(data[0].lon ?? data[0].lng);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+
     return {
-      lat: parseFloat(data[0].lat),
-      lng: parseFloat(data[0].lng),
+      lat,
+      lng,
       display: data[0].display_name,
     };
   } catch {

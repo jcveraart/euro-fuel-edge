@@ -33,6 +33,10 @@ const userIcon = new L.DivIcon({
   iconAnchor: [7, 7],
 });
 
+function hasValidCoordinates(lat: number, lng: number) {
+  return Number.isFinite(lat) && Number.isFinite(lng);
+}
+
 function MapUpdater({ center }: { center: [number, number] }) {
   const map = useMap();
   useEffect(() => {
@@ -60,19 +64,26 @@ export function FuelMap({
   tankSize,
   onStationClick,
 }: FuelMapProps) {
-  const center: [number, number] = userLocation
-    ? [userLocation.lat, userLocation.lng]
+  const safeUserLocation =
+    userLocation && hasValidCoordinates(userLocation.lat, userLocation.lng)
+      ? userLocation
+      : null;
+
+  const center: [number, number] = safeUserLocation
+    ? [safeUserLocation.lat, safeUserLocation.lng]
     : [51.5, 5.8]; // Default: near Dutch-German border
 
   const stationsWithProfit = useMemo(() => {
-    return stations.map((s) => {
+    return stations
+      .filter((s) => hasValidCoordinates(s.lat, s.lng))
+      .map((s) => {
       const price = s[fuelType];
-      if (!price || !userLocation) return { ...s, profit: 0 };
+      if (!price || !safeUserLocation) return { ...s, profit: 0 };
       const dist = s.dist || 10;
       const profit = calculateNetProfit(nlPrice, price, tankSize, dist, consumption);
       return { ...s, profit };
-    });
-  }, [stations, fuelType, nlPrice, tankSize, consumption, userLocation]);
+      });
+  }, [stations, fuelType, nlPrice, tankSize, consumption, safeUserLocation]);
 
   return (
     <MapContainer
@@ -87,16 +98,16 @@ export function FuelMap({
       />
       <MapUpdater center={center} />
 
-      {userLocation && (
+      {safeUserLocation && (
         <>
-          <Marker position={[userLocation.lat, userLocation.lng]} icon={userIcon}>
+          <Marker position={[safeUserLocation.lat, safeUserLocation.lng]} icon={userIcon}>
             <Popup>
               <span className="text-sm font-semibold">Jouw locatie</span>
             </Popup>
           </Marker>
           {/* Profitable zone circle */}
           <Circle
-            center={[userLocation.lat, userLocation.lng]}
+            center={[safeUserLocation.lat, safeUserLocation.lng]}
             radius={40000}
             pathOptions={{
               color: '#22c55e',
