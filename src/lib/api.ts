@@ -50,9 +50,38 @@ export async function fetchRDWFuel(kenteken: string): Promise<RDWFuelResult> {
   }
 }
 
-// Estimated tank sizes (liters) by make + model keyword
+// Fetch tank size from CarQuery API (free, no key needed)
+// Falls back to static lookup if API fails (e.g. CORS blocked)
+export async function fetchTankSize(merk: string, model: string): Promise<number | null> {
+  // Normalize make name for CarQuery (RDW uses uppercase, e.g. "VOLKSWAGEN")
+  const make = merk.toLowerCase().replace('mercedes-benz', 'mercedes').replace('bmw', 'bmw');
+  // Use first word of model for broader matching (e.g. "POLO TSI" → "polo")
+  const keyword = (model || '').toLowerCase().split(/[\s\/]/)[0];
+  if (!make || !keyword) return fallbackTankSize(model);
+
+  try {
+    const res = await fetch(
+      `https://www.carqueryapi.com/api/0.3/?cmd=getTrims&make=${encodeURIComponent(make)}&keyword=${encodeURIComponent(keyword)}&full_results=1`
+    );
+    if (!res.ok) return fallbackTankSize(model);
+    const data = await res.json();
+    const trims = data?.Trims;
+    if (!Array.isArray(trims) || !trims.length) return fallbackTankSize(model);
+
+    // Find the most common fuel capacity among trims
+    for (const trim of trims) {
+      const cap = parseFloat(trim.model_fuel_cap_l);
+      if (cap > 0) return Math.round(cap);
+    }
+    return fallbackTankSize(model);
+  } catch {
+    return fallbackTankSize(model);
+  }
+}
+
+// Fallback static lookup for when CarQuery is unavailable
 const TANK_SIZE_MAP: Record<string, number> = {
-  'POLO': 40, 'GOLF': 50, 'PASSAT': 66, 'TIGUAN': 58, 'T-ROC': 50, 'ID.3': 0, 'ID.4': 0, 'UP': 35,
+  'POLO': 40, 'GOLF': 50, 'PASSAT': 66, 'TIGUAN': 58, 'T-ROC': 50, 'UP': 35,
   'CORSA': 44, 'ASTRA': 50, 'MOKKA': 44, 'CROSSLAND': 44, 'GRANDLAND': 53,
   'CLIO': 42, 'MEGANE': 50, 'CAPTUR': 48, 'KADJAR': 55, 'SCENIC': 55,
   '208': 44, '308': 53, '2008': 44, '3008': 53, '5008': 56,
@@ -65,12 +94,12 @@ const TANK_SIZE_MAP: Record<string, number> = {
   'A-KLASSE': 43, 'B-KLASSE': 43, 'C-KLASSE': 66, 'E-KLASSE': 66, 'GLA': 43, 'GLB': 43,
   'YARIS': 36, 'COROLLA': 43, 'C-HR': 43, 'RAV4': 55, 'AYGO': 35,
   'SWIFT': 37, 'VITARA': 47, 'S-CROSS': 47,
-  'SANDERO': 50, 'DUSTER': 50, 'SPRING': 0,
+  'SANDERO': 50, 'DUSTER': 50,
   'I10': 35, 'I20': 40, 'I30': 50, 'TUCSON': 54, 'KONA': 42,
   'PICANTO': 35, 'RIO': 45, 'CEED': 50, 'SPORTAGE': 54, 'NIRO': 43,
 };
 
-export function estimateTankSize(merk: string, model: string): number | null {
+function fallbackTankSize(model: string): number | null {
   const m = (model || '').toUpperCase();
   for (const [key, size] of Object.entries(TANK_SIZE_MAP)) {
     if (m.includes(key)) return size;

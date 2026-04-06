@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Slider } from '@/components/ui/slider';
 import { Label } from '@/components/ui/label';
 import { AddressAutocomplete } from '@/components/AddressAutocomplete';
-import { fetchRDWData, fetchRDWFuel, estimateTankSize, DEFAULT_PRICES } from '@/lib/api';
+import { fetchRDWData, fetchRDWFuel, fetchTankSize, DEFAULT_PRICES } from '@/lib/api';
 import type { VehicleData } from '@/lib/calculations';
 import { toast } from 'sonner';
 
@@ -47,7 +47,7 @@ export function DashboardSidebar({
         const brandstof = fuel.brandstof || rdw.brandstof || 'Benzine';
         const merk = rdw.merk || 'Onbekend';
         const model = rdw.model || 'Onbekend';
-        const tankSize = estimateTankSize(merk, model);
+        const tankSize = await fetchTankSize(merk, model);
         onVehicleChange({
           ...vehicle,
           kenteken: rdw.kenteken || kenteken,
