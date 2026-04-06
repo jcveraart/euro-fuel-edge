@@ -66,22 +66,10 @@ export function DashboardSidebar({
     setLoadingKenteken(false);
   }, [kenteken, vehicle, onVehicleChange, onFuelTypeChange]);
 
-  const lookupAddress = useCallback(async () => {
-    if (!address.trim()) return;
-    setLoadingAddress(true);
-    try {
-      const result = await geocodeAddress(address);
-      if (result) {
-        onLocationChange(result);
-        toast.success('Locatie gevonden');
-      } else {
-        toast.error('Adres niet gevonden');
-      }
-    } catch {
-      toast.error('Fout bij geocoding');
-    }
-    setLoadingAddress(false);
-  }, [address, onLocationChange]);
+  const handleLocationSelect = useCallback((loc: { lat: number; lng: number; display: string }) => {
+    onLocationChange(loc);
+    toast.success('Locatie gevonden');
+  }, [onLocationChange]);
 
   const shareResult = () => {
     if (netProfit !== null && netProfit > 0) {
