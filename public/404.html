@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <script>
+      var path = window.location.pathname.replace('/euro-fuel-edge', '') || '/';
+      sessionStorage.redirect = path + window.location.search + window.location.hash;
+      window.location.replace('/euro-fuel-edge/');
+    </script>
+  </head>
+  <body></body>
+</html>
