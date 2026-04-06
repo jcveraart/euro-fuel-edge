@@ -149,6 +149,36 @@ export interface GeocodeSuggestion {
   display: string;
 }
 
+export interface RouteData {
+  coordinates: [number, number][]; // [lat, lng] pairs for Leaflet
+  distanceKm: number;
+  durationMin: number;
+}
+
+export async function fetchRoute(
+  fromLat: number,
+  fromLng: number,
+  toLat: number,
+  toLng: number
+): Promise<RouteData | null> {
+  try {
+    const res = await fetch(
+      `https://router.project-osrm.org/route/v1/driving/${fromLng},${fromLat};${toLng},${toLat}?overview=full&geometries=geojson`
+    );
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (!data.routes?.length) return null;
+    const route = data.routes[0];
+    return {
+      coordinates: route.geometry.coordinates.map(([lng, lat]: [number, number]) => [lat, lng] as [number, number]),
+      distanceKm: Math.round((route.distance / 1000) * 10) / 10,
+      durationMin: Math.round(route.duration / 60),
+    };
+  } catch {
+    return null;
+  }
+}
+
 export async function geocodeSuggestions(
   query: string
 ): Promise<GeocodeSuggestion[]> {

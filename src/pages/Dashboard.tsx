@@ -1,9 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { DashboardSidebar } from '@/components/DashboardSidebar';
 import { FuelMap } from '@/components/FuelMap';
-import { fetchGermanStations, DEFAULT_PRICES, BORDER_POINTS } from '@/lib/api';
+import { fetchGermanStations, fetchRoute, DEFAULT_PRICES, BORDER_POINTS, type RouteData } from '@/lib/api';
 import type { FuelStation, VehicleData } from '@/lib/calculations';
-import { calculateNetProfit } from '@/lib/calculations';
+import { calculateNetProfit, canReachStation } from '@/lib/calculations';
 
 export default function Dashboard() {
   const [vehicle, setVehicle] = useState<VehicleData>({
@@ -19,6 +19,12 @@ export default function Dashboard() {
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number; display: string } | null>(null);
   const [stations, setStations] = useState<FuelStation[]>([]);
   const [loading, setLoading] = useState(false);
+  const [currentTankPercent, setCurrentTankPercent] = useState(50);
+  const [bestStation, setBestStation] = useState<FuelStation | null>(null);
+  const [route, setRoute] = useState<RouteData | null>(null);
+  const [routeLoading, setRouteLoading] = useState(false);
+
+  const currentLiters = vehicle.tankinhoud * (currentTankPercent / 100);
 
   // Update NL price when fuel type changes
   useEffect(() => {
@@ -35,8 +41,6 @@ export default function Dashboard() {
       );
       const results = await Promise.all(fetches);
       results.forEach((r) => allStations.push(...r));
-
-      // Deduplicate by id
       const unique = Array.from(new Map(allStations.map((s) => [s.id, s])).values());
       setStations(unique);
     } catch {
@@ -49,21 +53,65 @@ export default function Dashboard() {
     loadStations();
   }, [loadStations]);
 
-  // Calculate best profit
-  const bestResult = stations.reduce<{ profit: number; name: string } | null>((best, s) => {
-    const price = s[fuelType];
-    if (!price) return best;
-    const dist = s.dist || 10;
-    const profit = calculateNetProfit(nlPrice, price, vehicle.tankinhoud, dist, vehicle.verbruik);
-    if (!best || profit > best.profit) {
-      return { profit, name: `${s.brand || s.name} - ${s.place}` };
+  // Find best reachable station when inputs change
+  useEffect(() => {
+    if (!userLocation || !stations.length) {
+      setBestStation(null);
+      setRoute(null);
+      return;
     }
-    return best;
-  }, null);
+
+    let best: FuelStation | null = null;
+    let bestProfit = -Infinity;
+
+    for (const s of stations) {
+      const price = s[fuelType];
+      if (!price) continue;
+      const dist = s.dist ?? 10;
+      if (!canReachStation(dist, vehicle.verbruik, currentLiters)) continue;
+      const profit = calculateNetProfit(nlPrice, price, vehicle.tankinhoud, dist, vehicle.verbruik, currentLiters);
+      if (profit > bestProfit) {
+        bestProfit = profit;
+        best = s;
+      }
+    }
+
+    setBestStation(best);
+  }, [stations, userLocation, fuelType, nlPrice, currentLiters, vehicle.verbruik, vehicle.tankinhoud]);
+
+  // Fetch route when best station changes
+  useEffect(() => {
+    if (!bestStation || !userLocation) {
+      setRoute(null);
+      return;
+    }
+    setRouteLoading(true);
+    fetchRoute(userLocation.lat, userLocation.lng, bestStation.lat, bestStation.lng)
+      .then(setRoute)
+      .finally(() => setRouteLoading(false));
+  }, [bestStation, userLocation]);
+
+  // Derive stats for sidebar
+  const reachableCount = userLocation
+    ? stations.filter((s) => {
+        const price = s[fuelType];
+        return price && canReachStation(s.dist ?? 10, vehicle.verbruik, currentLiters);
+      }).length
+    : 0;
+
+  const bestProfit = bestStation
+    ? calculateNetProfit(
+        nlPrice,
+        bestStation[fuelType] ?? 0,
+        vehicle.tankinhoud,
+        bestStation.dist ?? 10,
+        vehicle.verbruik,
+        currentLiters
+      )
+    : null;
 
   return (
     <div className="flex h-[calc(100vh-3.5rem)] pt-14">
-      {/* Sidebar */}
       <div className="w-80 shrink-0 border-r border-border bg-card/50 backdrop-blur-sm lg:w-96">
         <DashboardSidebar
           vehicle={vehicle}
@@ -73,12 +121,18 @@ export default function Dashboard() {
           onNlPriceChange={setNlPrice}
           fuelType={fuelType}
           nlPrice={nlPrice}
-          netProfit={bestResult?.profit ?? null}
-          bestStation={bestResult?.name ?? null}
+          currentTankPercent={currentTankPercent}
+          onTankPercentChange={setCurrentTankPercent}
+          currentLiters={currentLiters}
+          netProfit={bestProfit}
+          bestStation={bestStation}
+          route={route}
+          routeLoading={routeLoading}
+          reachableCount={reachableCount}
+          hasLocation={!!userLocation}
         />
       </div>
 
-      {/* Map */}
       <div className="relative flex-1">
         {loading && (
           <div className="absolute left-4 top-4 z-[1000] rounded-lg border border-border bg-card px-3 py-1.5 text-xs text-muted-foreground">
@@ -92,6 +146,9 @@ export default function Dashboard() {
           nlPrice={nlPrice}
           consumption={vehicle.verbruik}
           tankSize={vehicle.tankinhoud}
+          currentLiters={currentLiters}
+          bestStation={bestStation}
+          route={route}
         />
       </div>
     </div>

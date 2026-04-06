@@ -39,12 +39,25 @@ export function calculateNetProfit(
   foreignPrice: number,
   tankSize: number,
   distanceKm: number,
-  consumption: number // 1 op X
+  consumption: number, // 1 op X
+  currentLiters?: number // liters currently in tank (default: full)
 ): number {
-  const fuelForTrip = (distanceKm * 2) / consumption;
-  const tripCost = fuelForTrip * foreignPrice;
-  const grossSaving = (nlPrice - foreignPrice) * tankSize;
-  return grossSaving - tripCost;
+  const current = currentLiters ?? tankSize;
+  const fuelToReach = distanceKm / consumption;
+  const fuelOnArrival = Math.max(0, current - fuelToReach);
+  const amountToFill = tankSize - fuelOnArrival;
+  if (amountToFill <= 0) return 0;
+  const grossSaving = (nlPrice - foreignPrice) * amountToFill;
+  const roundTripCost = ((distanceKm * 2) / consumption) * foreignPrice;
+  return grossSaving - roundTripCost;
+}
+
+export function canReachStation(
+  distanceKm: number,
+  consumption: number,
+  currentLiters: number
+): boolean {
+  return currentLiters >= distanceKm / consumption;
 }
 
 export function calculateBreakeven(
