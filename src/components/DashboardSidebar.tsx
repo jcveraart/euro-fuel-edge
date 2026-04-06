@@ -1,10 +1,11 @@
 import { useState, useCallback } from 'react';
-import { Search, Car, Fuel, MapPin, Loader2, Share2 } from 'lucide-react';
+import { Search, Car, Fuel, Loader2, Share2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Slider } from '@/components/ui/slider';
 import { Label } from '@/components/ui/label';
-import { fetchRDWData, fetchRDWFuel, geocodeAddress, DEFAULT_PRICES } from '@/lib/api';
+import { AddressAutocomplete } from '@/components/AddressAutocomplete';
+import { fetchRDWData, fetchRDWFuel, DEFAULT_PRICES } from '@/lib/api';
 import type { VehicleData } from '@/lib/calculations';
 import { toast } from 'sonner';
 
@@ -32,9 +33,7 @@ export function DashboardSidebar({
   bestStation,
 }: DashboardSidebarProps) {
   const [kenteken, setKenteken] = useState('');
-  const [address, setAddress] = useState('');
   const [loadingKenteken, setLoadingKenteken] = useState(false);
-  const [loadingAddress, setLoadingAddress] = useState(false);
 
   const lookupKenteken = useCallback(async () => {
     if (!kenteken.trim()) return;
@@ -67,22 +66,10 @@ export function DashboardSidebar({
     setLoadingKenteken(false);
   }, [kenteken, vehicle, onVehicleChange, onFuelTypeChange]);
 
-  const lookupAddress = useCallback(async () => {
-    if (!address.trim()) return;
-    setLoadingAddress(true);
-    try {
-      const result = await geocodeAddress(address);
-      if (result) {
-        onLocationChange(result);
-        toast.success('Locatie gevonden');
-      } else {
-        toast.error('Adres niet gevonden');
-      }
-    } catch {
-      toast.error('Fout bij geocoding');
-    }
-    setLoadingAddress(false);
-  }, [address, onLocationChange]);
+  const handleLocationSelect = useCallback((loc: { lat: number; lng: number; display: string }) => {
+    onLocationChange(loc);
+    toast.success('Locatie gevonden');
+  }, [onLocationChange]);
 
   const shareResult = () => {
     if (netProfit !== null && netProfit > 0) {
@@ -197,20 +184,9 @@ export function DashboardSidebar({
       {/* Locatie */}
       <div className="space-y-2 rounded-lg border border-border bg-card p-3">
         <Label className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-          <MapPin className="h-3.5 w-3.5" /> Je Locatie
+          Je Locatie
         </Label>
-        <div className="flex gap-2">
-          <Input
-            placeholder="Bijv. Maastricht"
-            value={address}
-            onChange={(e) => setAddress(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && lookupAddress()}
-            className="text-sm"
-          />
-          <Button size="sm" onClick={lookupAddress} disabled={loadingAddress}>
-            {loadingAddress ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
-          </Button>
-        </div>
+        <AddressAutocomplete onSelect={handleLocationSelect} />
       </div>
 
       {/* Resultaat */}

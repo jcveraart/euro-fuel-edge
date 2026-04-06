@@ -75,29 +75,41 @@ export async function fetchGermanStations(
   }
 }
 
-export async function geocodeAddress(
+export interface GeocodeSuggestion {
+  lat: number;
+  lng: number;
+  display: string;
+}
+
+export async function geocodeSuggestions(
   query: string
-): Promise<{ lat: number; lng: number; display: string } | null> {
+): Promise<GeocodeSuggestion[]> {
+  if (query.trim().length < 2) return [];
   try {
     const res = await fetch(
-      `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&countrycodes=nl,de,be&limit=1`,
+      `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&countrycodes=nl,de,be&limit=5&addressdetails=1`,
       { headers: { 'User-Agent': 'GrensTankerPro/1.0' } }
     );
-    if (!res.ok) return null;
+    if (!res.ok) return [];
     const data = await res.json();
-    if (!data.length) return null;
-    const lat = parseFloat(data[0].lat);
-    const lng = parseFloat(data[0].lon ?? data[0].lng);
-    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
-
-    return {
-      lat,
-      lng,
-      display: data[0].display_name,
-    };
+    return data
+      .map((d: any) => {
+        const lat = parseFloat(d.lat);
+        const lng = parseFloat(d.lon ?? d.lng);
+        if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+        return { lat, lng, display: d.display_name as string };
+      })
+      .filter(Boolean) as GeocodeSuggestion[];
   } catch {
-    return null;
+    return [];
   }
+}
+
+export async function geocodeAddress(
+  query: string
+): Promise<GeocodeSuggestion | null> {
+  const results = await geocodeSuggestions(query);
+  return results[0] ?? null;
 }
 
 // Default NL/BE prices (user-editable)
