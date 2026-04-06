@@ -60,34 +60,38 @@ function MapController({ userLat, userLng, route }: { userLat: number | null; us
 }
 
 interface FuelMapProps {
-  stations: FuelStation[];
+  stations: FuelStation[];        // top 3
+  allStations: FuelStation[];     // closest 10 (shown dimmed)
   userLocation: { lat: number; lng: number } | null;
   fuelType: 'e5' | 'e10' | 'diesel';
   nlPrice: number;
   consumption: number;
   tankSize: number;
   currentLiters: number;
-  bestStation: FuelStation | null;
+  selectedStation: FuelStation | null;
+  onStationClick: (s: FuelStation) => void;
   route: RouteData | null;
   loading: boolean;
 }
 
 export function FuelMap({
   stations,
+  allStations,
   userLocation,
   fuelType,
   nlPrice,
   consumption,
   tankSize,
   currentLiters,
-  bestStation,
+  selectedStation,
+  onStationClick,
   route,
   loading,
 }: FuelMapProps) {
   const safeUser = userLocation && hasValidCoords(userLocation.lat, userLocation.lng) ? userLocation : null;
   const defaultCenter: [number, number] = [52.2, 5.5];
 
-  const stationsWithProfit = useMemo(() =>
+  const top3WithProfit = useMemo(() =>
     stations
       .filter((s) => hasValidCoords(s.lat, s.lng))
       .map((s) => {
@@ -98,6 +102,12 @@ export function FuelMap({
         return { ...s, profit };
       }),
     [stations, fuelType, nlPrice, tankSize, consumption, currentLiters, safeUser]
+  );
+
+  // Dimmed markers for the other closest stations not in top 3
+  const top3Ids = new Set(stations.map((s) => s.id));
+  const otherStations = allStations.filter(
+    (s) => !top3Ids.has(s.id) && hasValidCoords(s.lat, s.lng)
   );
 
   return (
@@ -134,33 +144,47 @@ export function FuelMap({
           />
         )}
 
-        {/* Station markers */}
-        {stationsWithProfit.map((s, i) => {
+        {/* Dimmed markers for other closest stations */}
+        {otherStations.map((s) => {
           const price = s[fuelType];
           if (!price) return null;
-          const isBest = bestStation?.id === s.id;
-          const rank = i + 1;
+          return (
+            <Marker key={s.id} position={[s.lat, s.lng]} icon={lossIcon} eventHandlers={{ click: () => onStationClick(s) }}>
+              <Popup>
+                <div style={{ color: '#111', minWidth: 160 }}>
+                  <p style={{ fontWeight: 700, margin: 0 }}>{s.brand || s.name}</p>
+                  <p style={{ fontSize: 12, color: '#666' }}>{s.place} · {(s.dist ?? 0).toFixed(1)} km</p>
+                  <p style={{ fontSize: 13, fontWeight: 600, marginTop: 4 }}>{fuelType.toUpperCase()}: €{price.toFixed(3)}/L</p>
+                </div>
+              </Popup>
+            </Marker>
+          );
+        })}
+
+        {/* Top 3 markers */}
+        {top3WithProfit.map((s, i) => {
+          const price = s[fuelType];
+          if (!price) return null;
+          const isSelected = selectedStation?.id === s.id;
+          const medals = ['🥇', '🥈', '🥉'];
           return (
             <Marker
               key={s.id}
               position={[s.lat, s.lng]}
-              icon={isBest ? bestIcon : s.profit > 0 ? profitIcon : lossIcon}
-              zIndexOffset={isBest ? 1000 : 0}
+              icon={isSelected ? bestIcon : profitIcon}
+              zIndexOffset={isSelected ? 1000 : 100}
+              eventHandlers={{ click: () => onStationClick(s) }}
             >
               <Popup>
                 <div style={{ color: '#111', minWidth: 180 }}>
-                  <p style={{ fontWeight: 700, margin: 0 }}>
-                    {isBest ? '⭐ ' : `#${rank} `}{s.brand || s.name}
-                  </p>
+                  <p style={{ fontWeight: 700, margin: 0 }}>{medals[i]} {s.brand || s.name}</p>
                   <p style={{ fontSize: 12, color: '#555', margin: '2px 0 0' }}>{s.street}, {s.place}</p>
-                  <p style={{ fontSize: 14, fontWeight: 600, margin: '6px 0 2px' }}>
-                    {fuelType.toUpperCase()}: €{price.toFixed(3)}/L
-                  </p>
+                  <p style={{ fontSize: 14, fontWeight: 600, margin: '6px 0 2px' }}>{fuelType.toUpperCase()}: €{price.toFixed(3)}/L</p>
                   <p style={{ fontSize: 12, color: '#666' }}>{(s.dist ?? 0).toFixed(1)} km</p>
                   <p style={{ fontSize: 14, fontWeight: 700, color: s.profit > 0 ? '#22c55e' : '#ef4444', marginTop: 4 }}>
                     Netto: €{s.profit.toFixed(2)}
                   </p>
-                  {isBest && <p style={{ fontSize: 11, color: '#f59e0b', marginTop: 2 }}>✓ Beste keuze</p>}
+                  {isSelected && <p style={{ fontSize: 11, color: '#f59e0b', marginTop: 2 }}>✓ Geselecteerd</p>}
                 </div>
               </Popup>
             </Marker>

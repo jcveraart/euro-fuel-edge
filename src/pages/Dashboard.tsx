@@ -3,7 +3,13 @@ import { DashboardSidebar } from '@/components/DashboardSidebar';
 import { FuelMap } from '@/components/FuelMap';
 import { fetchGermanStations, fetchRoute, DEFAULT_PRICES, type RouteData } from '@/lib/api';
 import type { FuelStation, VehicleData } from '@/lib/calculations';
-import { calculateNetProfit, canReachStation } from '@/lib/calculations';
+import { calculateNetProfit } from '@/lib/calculations';
+
+export interface RankedStation {
+  station: FuelStation;
+  profit: number;
+  rank: number;
+}
 
 export default function Dashboard() {
   const [vehicle, setVehicle] = useState<VehicleData>({
@@ -17,90 +23,82 @@ export default function Dashboard() {
   const [fuelType, setFuelType] = useState<'e5' | 'e10' | 'diesel'>('e5');
   const [nlPrice, setNlPrice] = useState(DEFAULT_PRICES.nl.e5);
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number; display: string } | null>(null);
-  const [stations, setStations] = useState<FuelStation[]>([]);
+  const [allStations, setAllStations] = useState<FuelStation[]>([]);
   const [loading, setLoading] = useState(false);
   const [currentTankPercent, setCurrentTankPercent] = useState(50);
-  const [bestStation, setBestStation] = useState<FuelStation | null>(null);
-  const [topStations, setTopStations] = useState<FuelStation[]>([]);
+  const [top3, setTop3] = useState<RankedStation[]>([]);
+  const [selectedStation, setSelectedStation] = useState<FuelStation | null>(null);
   const [route, setRoute] = useState<RouteData | null>(null);
   const [routeLoading, setRouteLoading] = useState(false);
 
   const currentLiters = vehicle.tankinhoud * (currentTankPercent / 100);
 
-  // Update NL price when fuel type changes
   useEffect(() => {
     setNlPrice(DEFAULT_PRICES.nl[fuelType]);
   }, [fuelType]);
 
-  // Fetch German stations around user location (30km radius)
+  // Fetch stations whenever location or fuel type changes
   useEffect(() => {
     if (!userLocation) return;
     setLoading(true);
-    setStations([]);
-    setBestStation(null);
+    setAllStations([]);
+    setTop3([]);
+    setSelectedStation(null);
     setRoute(null);
 
     fetchGermanStations(userLocation.lat, userLocation.lng, 25, fuelType)
-      .then((results) => setStations(results))
+      .then((results) => {
+        setAllStations(results);
+      })
       .finally(() => setLoading(false));
   }, [userLocation, fuelType]);
 
-  // Sort all stations by profit, pick top 10 and best
+  // From all stations: take 10 closest, rank by savings, pick top 3
   useEffect(() => {
-    if (!userLocation || !stations.length) {
-      setTopStations([]);
-      setBestStation(null);
+    if (!userLocation || !allStations.length) {
+      setTop3([]);
+      setSelectedStation(null);
       return;
     }
 
-    const scored = stations
-      .map((s) => {
-        const price = s[fuelType];
-        if (!price) return null;
-        const dist = s.dist ?? 10;
-        const reachable = canReachStation(dist, vehicle.verbruik, currentLiters);
-        const profit = calculateNetProfit(nlPrice, price, vehicle.tankinhoud, dist, vehicle.verbruik, currentLiters);
-        return { station: s, profit, reachable };
-      })
-      .filter((x): x is { station: FuelStation; profit: number; reachable: boolean } => x !== null)
-      .sort((a, b) => b.profit - a.profit);
+    // Stations are already sorted by dist (sort=dist from API)
+    // Take the 10 closest that have a price for this fuel type
+    const closest10 = allStations
+      .filter((s) => s[fuelType] != null)
+      .slice(0, 10);
 
-    const reachable = scored.filter((x) => x.reachable);
-    const top10 = reachable.slice(0, 10).map((x) => x.station);
+    // Score each by net savings
+    const scored = closest10
+      .map((s) => ({
+        station: s,
+        profit: calculateNetProfit(
+          nlPrice,
+          s[fuelType]!,
+          vehicle.tankinhoud,
+          s.dist ?? 10,
+          vehicle.verbruik,
+          currentLiters
+        ),
+      }))
+      .sort((a, b) => b.profit - a.profit)
+      .slice(0, 3)
+      .map((x, i) => ({ ...x, rank: i + 1 }));
 
-    setTopStations(top10);
-    setBestStation(top10[0] ?? null);
-  }, [stations, fuelType, nlPrice, currentLiters, vehicle.verbruik, vehicle.tankinhoud, userLocation]);
+    setTop3(scored);
+    setSelectedStation(scored[0]?.station ?? null);
+  }, [allStations, fuelType, nlPrice, currentLiters, vehicle.verbruik, vehicle.tankinhoud, userLocation]);
 
-  // Fetch route to best station
+  // Fetch route to selected station
   useEffect(() => {
-    if (!bestStation || !userLocation) {
+    if (!selectedStation || !userLocation) {
       setRoute(null);
       return;
     }
     setRouteLoading(true);
-    fetchRoute(userLocation.lat, userLocation.lng, bestStation.lat, bestStation.lng)
+    fetchRoute(userLocation.lat, userLocation.lng, selectedStation.lat, selectedStation.lng)
       .then(setRoute)
       .finally(() => setRouteLoading(false));
-  }, [bestStation, userLocation]);
-
-  const reachableCount = userLocation
-    ? stations.filter((s) => {
-        const price = s[fuelType];
-        return price && canReachStation(s.dist ?? 10, vehicle.verbruik, currentLiters);
-      }).length
-    : 0;
-
-  const bestProfit = bestStation
-    ? calculateNetProfit(
-        nlPrice,
-        bestStation[fuelType] ?? 0,
-        vehicle.tankinhoud,
-        bestStation.dist ?? 10,
-        vehicle.verbruik,
-        currentLiters
-      )
-    : null;
+  }, [selectedStation, userLocation]);
 
   return (
     <div className="flex h-[calc(100vh-3.5rem)] pt-14">
@@ -116,27 +114,29 @@ export default function Dashboard() {
           currentTankPercent={currentTankPercent}
           onTankPercentChange={setCurrentTankPercent}
           currentLiters={currentLiters}
-          netProfit={bestProfit}
-          bestStation={bestStation}
+          top3={top3}
+          selectedStation={selectedStation}
+          onSelectStation={setSelectedStation}
           route={route}
           routeLoading={routeLoading}
-          reachableCount={reachableCount}
-          stationsCount={stations.length}
           hasLocation={!!userLocation}
           stationsLoading={loading}
+          stationsCount={allStations.length}
         />
       </div>
 
       <div className="relative flex-1">
         <FuelMap
-          stations={topStations}
+          stations={top3.map((r) => r.station)}
+          allStations={allStations.filter((s) => s[fuelType] != null).slice(0, 10)}
           userLocation={userLocation ? { lat: userLocation.lat, lng: userLocation.lng } : null}
           fuelType={fuelType}
           nlPrice={nlPrice}
           consumption={vehicle.verbruik}
           tankSize={vehicle.tankinhoud}
           currentLiters={currentLiters}
-          bestStation={bestStation}
+          selectedStation={selectedStation}
+          onStationClick={setSelectedStation}
           route={route}
           loading={loading}
         />

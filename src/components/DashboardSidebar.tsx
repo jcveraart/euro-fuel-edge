@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { Search, Car, Fuel, Loader2, Share2, Navigation, AlertTriangle, Clock, Route } from 'lucide-react';
+import { Search, Car, Fuel, Loader2, Share2, Navigation, AlertTriangle, Clock, RouteIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Slider } from '@/components/ui/slider';
@@ -7,48 +7,49 @@ import { Label } from '@/components/ui/label';
 import { AddressAutocomplete } from '@/components/AddressAutocomplete';
 import { fetchRDWData, fetchRDWFuel, fetchTankSize, DEFAULT_PRICES, type RouteData } from '@/lib/api';
 import type { FuelStation, VehicleData } from '@/lib/calculations';
+import type { RankedStation } from '@/pages/Dashboard';
 import { toast } from 'sonner';
 
 interface DashboardSidebarProps {
-  onVehicleChange: (v: VehicleData) => void;
-  onLocationChange: (loc: { lat: number; lng: number; display: string }) => void;
-  onFuelTypeChange: (type: 'e5' | 'e10' | 'diesel') => void;
-  onNlPriceChange: (price: number) => void;
-  onTankPercentChange: (pct: number) => void;
   vehicle: VehicleData;
   fuelType: 'e5' | 'e10' | 'diesel';
   nlPrice: number;
   currentTankPercent: number;
   currentLiters: number;
-  netProfit: number | null;
-  bestStation: FuelStation | null;
+  top3: RankedStation[];
+  selectedStation: FuelStation | null;
   route: RouteData | null;
   routeLoading: boolean;
-  reachableCount: number;
-  stationsCount: number;
   hasLocation: boolean;
   stationsLoading: boolean;
+  stationsCount: number;
+  onVehicleChange: (v: VehicleData) => void;
+  onLocationChange: (loc: { lat: number; lng: number; display: string }) => void;
+  onFuelTypeChange: (type: 'e5' | 'e10' | 'diesel') => void;
+  onNlPriceChange: (price: number) => void;
+  onTankPercentChange: (pct: number) => void;
+  onSelectStation: (s: FuelStation) => void;
 }
 
 export function DashboardSidebar({
-  onVehicleChange,
-  onLocationChange,
-  onFuelTypeChange,
-  onNlPriceChange,
-  onTankPercentChange,
   vehicle,
   fuelType,
   nlPrice,
   currentTankPercent,
   currentLiters,
-  netProfit,
-  bestStation,
+  top3,
+  selectedStation,
   route,
   routeLoading,
-  reachableCount,
-  stationsCount,
   hasLocation,
   stationsLoading,
+  stationsCount,
+  onVehicleChange,
+  onLocationChange,
+  onFuelTypeChange,
+  onNlPriceChange,
+  onTankPercentChange,
+  onSelectStation,
 }: DashboardSidebarProps) {
   const [kenteken, setKenteken] = useState('');
   const [loadingKenteken, setLoadingKenteken] = useState(false);
@@ -57,10 +58,7 @@ export function DashboardSidebar({
     if (!kenteken.trim()) return;
     setLoadingKenteken(true);
     try {
-      const [rdw, fuel] = await Promise.all([
-        fetchRDWData(kenteken),
-        fetchRDWFuel(kenteken),
-      ]);
+      const [rdw, fuel] = await Promise.all([fetchRDWData(kenteken), fetchRDWFuel(kenteken)]);
       if (rdw) {
         const brandstof = fuel.brandstof || rdw.brandstof || 'Benzine';
         const merk = rdw.merk || 'Onbekend';
@@ -69,9 +67,7 @@ export function DashboardSidebar({
         onVehicleChange({
           ...vehicle,
           kenteken: rdw.kenteken || kenteken,
-          merk,
-          model,
-          brandstof,
+          merk, model, brandstof,
           ...(fuel.verbruik ? { verbruik: fuel.verbruik } : {}),
           ...(tankSize ? { tankinhoud: tankSize } : {}),
         });
@@ -86,31 +82,20 @@ export function DashboardSidebar({
     setLoadingKenteken(false);
   }, [kenteken, vehicle, onVehicleChange, onFuelTypeChange]);
 
-  const handleLocationSelect = useCallback((loc: { lat: number; lng: number; display: string }) => {
-    onLocationChange(loc);
-    toast.success('Locatie gevonden');
-  }, [onLocationChange]);
-
-  const shareResult = () => {
-    if (netProfit !== null && netProfit > 0 && bestStation) {
-      const text = `Ik bespaar €${netProfit.toFixed(2)} door te tanken bij ${bestStation.brand || bestStation.name} in ${bestStation.place}! 🚗⛽ #GrensTanker`;
-      navigator.clipboard.writeText(text);
-      toast.success('Resultaat gekopieerd!');
-    }
-  };
-
-  const openInMaps = () => {
-    if (bestStation) {
-      window.open(`https://www.google.com/maps/dir/?api=1&destination=${bestStation.lat},${bestStation.lng}&travelmode=driving`, '_blank');
-    }
-  };
-
-  // Fuel level color
   const tankColor = currentTankPercent <= 15 ? 'text-red-500' : currentTankPercent <= 30 ? 'text-yellow-500' : 'text-profit';
 
-  const noStationsFound = hasLocation && !stationsLoading && stationsCount === 0;
-  const noReachableStations = hasLocation && !stationsLoading && stationsCount > 0 && reachableCount === 0;
-  const noLocation = !hasLocation;
+  const openInMaps = (s: FuelStation) => {
+    window.open(`https://www.google.com/maps/dir/?api=1&destination=${s.lat},${s.lng}&travelmode=driving`, '_blank');
+  };
+
+  const shareResult = (ranked: RankedStation) => {
+    const s = ranked.station;
+    const text = `Ik bespaar €${ranked.profit.toFixed(2)} door te tanken bij ${s.brand || s.name} in ${s.place}! 🚗⛽ #GrensTanker`;
+    navigator.clipboard.writeText(text);
+    toast.success('Resultaat gekopieerd!');
+  };
+
+  const rankLabels = ['🥇', '🥈', '🥉'];
 
   return (
     <div className="flex h-full w-full flex-col gap-3 overflow-y-auto p-4">
@@ -119,7 +104,7 @@ export function DashboardSidebar({
         <p className="text-xs text-muted-foreground">Bereken je besparing</p>
       </div>
 
-      {/* Kenteken Lookup */}
+      {/* Kenteken */}
       <div className="space-y-2 rounded-lg border border-border bg-card p-3">
         <Label className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
           <Car className="h-3.5 w-3.5" /> Voertuig
@@ -137,9 +122,7 @@ export function DashboardSidebar({
           </Button>
         </div>
         {vehicle.merk !== 'Onbekend' && (
-          <p className="text-xs text-primary">
-            {vehicle.merk} {vehicle.model} • {vehicle.brandstof}
-          </p>
+          <p className="text-xs text-primary">{vehicle.merk} {vehicle.model} • {vehicle.brandstof}</p>
         )}
       </div>
 
@@ -148,42 +131,35 @@ export function DashboardSidebar({
         <Label className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
           <Fuel className="h-3.5 w-3.5" /> Verbruik & Tank
         </Label>
-        <div className="space-y-1.5">
-          <div className="flex items-center justify-between">
+        <div className="space-y-1">
+          <div className="flex justify-between">
             <span className="text-xs text-muted-foreground">1 op</span>
-            <span className="font-mono text-sm text-foreground">{vehicle.verbruik} km</span>
+            <span className="font-mono text-sm">{vehicle.verbruik} km</span>
           </div>
-          <Slider value={[vehicle.verbruik]} onValueChange={([v]) => onVehicleChange({ ...vehicle, verbruik: v })} min={5} max={30} step={0.5} className="py-1" />
+          <Slider value={[vehicle.verbruik]} onValueChange={([v]) => onVehicleChange({ ...vehicle, verbruik: v })} min={5} max={30} step={0.5} />
         </div>
-        <div className="space-y-1.5">
-          <div className="flex items-center justify-between">
+        <div className="space-y-1">
+          <div className="flex justify-between">
             <span className="text-xs text-muted-foreground">Tankinhoud</span>
-            <span className="font-mono text-sm text-foreground">{vehicle.tankinhoud} L</span>
+            <span className="font-mono text-sm">{vehicle.tankinhoud} L</span>
           </div>
-          <Slider value={[vehicle.tankinhoud]} onValueChange={([v]) => onVehicleChange({ ...vehicle, tankinhoud: v })} min={20} max={100} step={5} className="py-1" />
+          <Slider value={[vehicle.tankinhoud]} onValueChange={([v]) => onVehicleChange({ ...vehicle, tankinhoud: v })} min={20} max={100} step={5} />
         </div>
       </div>
 
       {/* Huidige tankstand */}
       <div className="space-y-2 rounded-lg border border-border bg-card p-3">
-        <Label className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+        <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
           Huidige Tankstand
         </Label>
-        <div className="space-y-1.5">
-          <div className="flex items-center justify-between">
+        <div className="space-y-1">
+          <div className="flex justify-between">
             <span className="text-xs text-muted-foreground">Vol</span>
             <span className={`font-mono text-sm font-semibold ${tankColor}`}>
-              {currentTankPercent}% &nbsp;·&nbsp; {currentLiters.toFixed(0)} L
+              {currentTankPercent}% · {currentLiters.toFixed(0)} L
             </span>
           </div>
-          <Slider
-            value={[currentTankPercent]}
-            onValueChange={([v]) => onTankPercentChange(v)}
-            min={0}
-            max={100}
-            step={5}
-            className="py-1"
-          />
+          <Slider value={[currentTankPercent]} onValueChange={([v]) => onTankPercentChange(v)} min={0} max={100} step={5} />
           {currentTankPercent <= 15 && (
             <p className="flex items-center gap-1 text-xs text-red-500">
               <AlertTriangle className="h-3 w-3" /> Tank bijna leeg!
@@ -192,18 +168,13 @@ export function DashboardSidebar({
         </div>
       </div>
 
-      {/* Brandstoftype */}
+      {/* Brandstof */}
       <div className="space-y-2 rounded-lg border border-border bg-card p-3">
         <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Brandstof</Label>
         <div className="grid grid-cols-3 gap-1.5">
           {(['e5', 'e10', 'diesel'] as const).map((ft) => (
-            <button
-              key={ft}
-              onClick={() => onFuelTypeChange(ft)}
-              className={`rounded-md px-2 py-1.5 text-xs font-semibold uppercase transition-colors ${
-                fuelType === ft ? 'bg-primary text-primary-foreground' : 'bg-secondary text-secondary-foreground hover:bg-accent'
-              }`}
-            >
+            <button key={ft} onClick={() => onFuelTypeChange(ft)}
+              className={`rounded-md px-2 py-1.5 text-xs font-semibold uppercase transition-colors ${fuelType === ft ? 'bg-primary text-primary-foreground' : 'bg-secondary text-secondary-foreground hover:bg-accent'}`}>
               {ft}
             </button>
           ))}
@@ -218,98 +189,94 @@ export function DashboardSidebar({
 
       {/* Locatie */}
       <div className="space-y-2 rounded-lg border border-border bg-card p-3">
-        <Label className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-          Je Locatie
-        </Label>
-        <AddressAutocomplete onSelect={handleLocationSelect} />
+        <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Je Locatie</Label>
+        <AddressAutocomplete onSelect={(loc) => { onLocationChange(loc); toast.success('Locatie gevonden'); }} />
       </div>
 
-      {/* Stations loading */}
-      {stationsLoading && hasLocation && (
+      {/* Loading */}
+      {stationsLoading && (
         <div className="flex items-center gap-2 rounded-lg border border-border bg-card p-3 text-xs text-muted-foreground">
           <Loader2 className="h-3.5 w-3.5 animate-spin" /> Duitse stations zoeken...
         </div>
       )}
 
-      {/* Error: no stations found near location */}
-      {noStationsFound && (
+      {/* No stations found */}
+      {hasLocation && !stationsLoading && stationsCount === 0 && (
         <div className="rounded-lg border border-yellow-500/30 bg-yellow-500/10 p-3">
           <p className="flex items-center gap-2 text-xs font-semibold text-yellow-500">
             <AlertTriangle className="h-4 w-4 shrink-0" />
-            Geen Duitse stations gevonden binnen 25 km. Probeer een andere locatie.
+            Geen stations gevonden binnen 25 km. Probeer een locatie dichter bij de grens.
           </p>
         </div>
       )}
 
-      {/* Error: can't reach any station */}
-      {noReachableStations && (
-        <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-3">
-          <p className="flex items-center gap-2 text-xs font-semibold text-red-500">
-            <AlertTriangle className="h-4 w-4 shrink-0" />
-            Te weinig brandstof om een Duits station te bereiken. Vul eerst bij in Nederland.
+      {/* Top 3 results */}
+      {top3.length > 0 && (
+        <div className="space-y-2">
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            Top 3 beste opties
           </p>
-        </div>
-      )}
-
-      {/* Route result */}
-      {(bestStation || routeLoading) && !noReachableStations && (
-        <div className={`rounded-lg border p-3 ${netProfit && netProfit > 0 ? 'border-profit/30 bg-profit/5' : 'border-border bg-card'}`}>
-          <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            Beste Route
-          </p>
-
-          {routeLoading ? (
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <Loader2 className="h-3.5 w-3.5 animate-spin" /> Route berekenen...
-            </div>
-          ) : bestStation && (
-            <>
-              <p className="font-semibold text-foreground">{bestStation.brand || bestStation.name}</p>
-              <p className="text-xs text-muted-foreground">{bestStation.street}, {bestStation.place}</p>
-              <p className="mt-1 text-sm font-mono font-bold text-primary">
-                {bestStation[fuelType] ? `€${bestStation[fuelType]!.toFixed(3)}/L` : '—'}
-              </p>
-
-              {route && (
-                <div className="mt-2 flex items-center gap-3 text-xs text-muted-foreground">
-                  <span className="flex items-center gap-1">
-                    <Route className="h-3.5 w-3.5" />
-                    {route.distanceKm} km
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <Clock className="h-3.5 w-3.5" />
-                    ~{route.durationMin} min
-                  </span>
-                </div>
-              )}
-
-              {netProfit !== null && (
-                <div className="mt-2 flex items-center justify-between">
-                  <div>
-                    <p className="text-xs text-muted-foreground">Netto besparing</p>
-                    <p className={`font-mono text-xl font-bold ${netProfit > 0 ? 'text-profit' : 'text-loss'}`}>
-                      €{netProfit.toFixed(2)}
+          {top3.map((ranked) => {
+            const s = ranked.station;
+            const isSelected = selectedStation?.id === s.id;
+            const price = s[fuelType];
+            return (
+              <button
+                key={s.id}
+                onClick={() => onSelectStation(s)}
+                className={`w-full rounded-lg border p-3 text-left transition-all ${
+                  isSelected
+                    ? 'border-primary/50 bg-primary/10'
+                    : 'border-border bg-card hover:border-border/80 hover:bg-accent/30'
+                }`}
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0 flex-1">
+                    <p className="flex items-center gap-1.5 font-semibold text-foreground text-sm">
+                      <span>{rankLabels[ranked.rank - 1]}</span>
+                      <span className="truncate">{s.brand || s.name}</span>
                     </p>
+                    <p className="truncate text-xs text-muted-foreground">{s.place} · {(s.dist ?? 0).toFixed(1)} km</p>
+                    <div className="mt-1.5 flex items-center gap-3">
+                      <span className="font-mono text-sm font-bold text-primary">
+                        €{price?.toFixed(3)}/L
+                      </span>
+                      {route && isSelected && (
+                        <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                          <Clock className="h-3 w-3" />
+                          {routeLoading ? '...' : `${route.durationMin} min · ${route.distanceKm} km`}
+                        </span>
+                      )}
+                    </div>
                   </div>
-                  <div className="flex flex-col gap-1.5">
-                    <Button size="sm" onClick={openInMaps} className="gap-1.5 text-xs">
+                  <div className="shrink-0 text-right">
+                    <p className={`font-mono text-lg font-bold ${ranked.profit > 0 ? 'text-profit' : 'text-loss'}`}>
+                      {ranked.profit > 0 ? '+' : ''}€{ranked.profit.toFixed(2)}
+                    </p>
+                    <p className="text-xs text-muted-foreground">besparing</p>
+                  </div>
+                </div>
+
+                {isSelected && (
+                  <div className="mt-2 flex gap-2">
+                    <Button size="sm" className="flex-1 gap-1.5 text-xs h-7" onClick={(e) => { e.stopPropagation(); openInMaps(s); }}>
                       <Navigation className="h-3.5 w-3.5" /> Navigeer
                     </Button>
-                    {netProfit > 0 && (
-                      <Button size="sm" variant="outline" onClick={shareResult} className="gap-1.5 border-border text-xs">
-                        <Share2 className="h-3.5 w-3.5" /> Deel
+                    {ranked.profit > 0 && (
+                      <Button size="sm" variant="outline" className="gap-1.5 text-xs h-7" onClick={(e) => { e.stopPropagation(); shareResult(ranked); }}>
+                        <Share2 className="h-3.5 w-3.5" />
                       </Button>
                     )}
                   </div>
-                </div>
-              )}
-            </>
-          )}
+                )}
+              </button>
+            );
+          })}
         </div>
       )}
 
-      {noLocation && (
-        <p className="text-center text-xs text-muted-foreground">Voer je locatie in om de beste route te berekenen.</p>
+      {!hasLocation && (
+        <p className="text-center text-xs text-muted-foreground pt-2">Voer je locatie in om de beste stations te vinden.</p>
       )}
     </div>
   );

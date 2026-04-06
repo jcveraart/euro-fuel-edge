@@ -115,30 +115,29 @@ export async function fetchGermanStations(
 ): Promise<FuelStation[]> {
   try {
     const res = await fetch(
-      `https://creativecommons.tankerkoenig.de/json/list.php?lat=${lat}&lng=${lng}&rad=${radius}&sort=price&type=${fuelType}&apikey=${TANKERKOENIG_API_KEY}`
+      `https://creativecommons.tankerkoenig.de/json/list.php?lat=${lat}&lng=${lng}&rad=${radius}&sort=dist&type=${fuelType}&apikey=${TANKERKOENIG_API_KEY}`
     );
     if (!res.ok) return [];
     const data = await res.json();
     if (!data.ok || !data.stations) return [];
 
-    return data.stations
-      .filter((s: any) => s.isOpen)
-      .map((s: any) => ({
-        id: s.id,
-        name: s.name,
-        brand: s.brand,
-        street: `${s.street} ${s.houseNumber || ''}`.trim(),
-        place: s.place,
-        lat: s.lat,
-        lng: s.lng,
-        e5: s.e5 || undefined,
-        e10: s.e10 || undefined,
-        diesel: s.diesel || undefined,
-        dist: s.dist,
-        isOpen: s.isOpen,
-        country: 'DE' as const,
-      }));
-  } catch {
+    return data.stations.map((s: any) => ({
+      id: s.id,
+      name: s.name,
+      brand: s.brand,
+      street: `${s.street} ${s.houseNumber || ''}`.trim(),
+      place: s.place,
+      lat: s.lat,
+      lng: s.lng,
+      e5: s.e5 || undefined,
+      e10: s.e10 || undefined,
+      diesel: s.diesel || undefined,
+      dist: s.dist,
+      isOpen: s.isOpen,
+      country: 'DE' as const,
+    }));
+  } catch (e) {
+    console.error('Tankerkönig fetch failed:', e);
     return [];
   }
 }
