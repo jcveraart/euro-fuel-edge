@@ -184,20 +184,9 @@ export function DashboardSidebar({
       {/* Locatie */}
       <div className="space-y-2 rounded-lg border border-border bg-card p-3">
         <Label className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-          <MapPin className="h-3.5 w-3.5" /> Je Locatie
+          Je Locatie
         </Label>
-        <div className="flex gap-2">
-          <Input
-            placeholder="Bijv. Maastricht"
-            value={address}
-            onChange={(e) => setAddress(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && lookupAddress()}
-            className="text-sm"
-          />
-          <Button size="sm" onClick={lookupAddress} disabled={loadingAddress}>
-            {loadingAddress ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
-          </Button>
-        </div>
+        <AddressAutocomplete onSelect={handleLocationSelect} />
       </div>
 
       {/* Resultaat */}
