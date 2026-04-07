@@ -3,7 +3,56 @@
 @tailwind utilities;
 
 @layer base {
+  /* ── Light mode (default) ────────────────────────────────────── */
   :root {
+    --background: 36 20% 97%;
+    --foreground: 20 14% 12%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 20 14% 12%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 20 14% 12%;
+
+    --primary: 142 64% 32%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 36 15% 93%;
+    --secondary-foreground: 20 14% 20%;
+
+    --muted: 36 15% 93%;
+    --muted-foreground: 20 8% 46%;
+
+    --accent: 36 12% 90%;
+    --accent-foreground: 20 14% 12%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 30 10% 87%;
+    --input: 30 10% 87%;
+    --ring: 142 64% 32%;
+
+    --radius: 0.75rem;
+
+    --profit: 142 64% 32%;
+    --profit-foreground: 0 0% 100%;
+    --loss: 0 72% 51%;
+    --loss-foreground: 0 0% 100%;
+    --warning: 38 92% 45%;
+
+    --sidebar-background: 36 15% 94%;
+    --sidebar-foreground: 20 14% 20%;
+    --sidebar-primary: 142 64% 32%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 36 12% 90%;
+    --sidebar-accent-foreground: 20 14% 12%;
+    --sidebar-border: 30 10% 87%;
+    --sidebar-ring: 142 64% 32%;
+  }
+
+  /* ── Dark mode ────────────────────────────────────────────────── */
+  .dark {
     --background: 222 47% 6%;
     --foreground: 210 20% 92%;
 
@@ -31,8 +80,6 @@
     --border: 215 20% 18%;
     --input: 215 20% 18%;
     --ring: 142 71% 45%;
-
-    --radius: 0.75rem;
 
     --profit: 142 71% 45%;
     --profit-foreground: 142 71% 6%;
@@ -67,32 +114,24 @@
 }
 
 @layer utilities {
-  .text-profit {
-    color: hsl(var(--profit));
-  }
-  .text-loss {
-    color: hsl(var(--loss));
-  }
-  .bg-profit {
-    background-color: hsl(var(--profit));
-  }
-  .bg-loss {
-    background-color: hsl(var(--loss));
-  }
-  .glow-profit {
-    box-shadow: 0 0 20px hsl(var(--profit) / 0.3), 0 0 60px hsl(var(--profit) / 0.1);
-  }
-  .glow-card {
-    box-shadow: 0 4px 30px hsl(0 0% 0% / 0.4);
-  }
+  .text-profit { color: hsl(var(--profit)); }
+  .text-loss   { color: hsl(var(--loss)); }
+  .bg-profit   { background-color: hsl(var(--profit)); }
+  .bg-loss     { background-color: hsl(var(--loss)); }
+  .glow-profit { box-shadow: 0 0 20px hsl(var(--profit) / 0.3), 0 0 60px hsl(var(--profit) / 0.1); }
+  .glow-card   { box-shadow: 0 4px 30px hsl(0 0% 0% / 0.08); }
 }
 
+/* ── Leaflet ─────────────────────────────────────────────────────── */
 .leaflet-container {
-  background: hsl(222 40% 6%) !important;
   height: 100%;
   width: 100%;
 }
 
-.leaflet-tile-pane {
+.dark .leaflet-container {
+  background: hsl(222 40% 6%) !important;
+}
+
+.dark .leaflet-tile-pane {
   filter: brightness(0.7) contrast(1.1) saturate(0.8);
 }

@@ -72,6 +72,7 @@ interface FuelMapProps {
   onStationClick: (s: FuelStation) => void;
   route: RouteData | null;
   loading: boolean;
+  isDark?: boolean;
 }
 
 export function FuelMap({
@@ -87,6 +88,7 @@ export function FuelMap({
   onStationClick,
   route,
   loading,
+  isDark = true,
 }: FuelMapProps) {
   const safeUser = userLocation && hasValidCoords(userLocation.lat, userLocation.lng) ? userLocation : null;
   const defaultCenter: [number, number] = [52.2, 5.5];
@@ -120,7 +122,11 @@ export function FuelMap({
       <MapContainer center={defaultCenter} zoom={8} className="h-full w-full" zoomControl={false}>
         <TileLayer
           attribution='&copy; <a href="https://carto.com/">CARTO</a>'
-          url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+          url={
+            isDark
+              ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
+              : 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png'
+          }
         />
 
         <MapController

@@ -1,6 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
 import { DashboardSidebar } from '@/components/DashboardSidebar';
+import { StationsPanel } from '@/components/StationsPanel';
 import { FuelMap } from '@/components/FuelMap';
+import { useTheme } from '@/context/ThemeContext';
 import {
   fetchCrossingsAndStations,
   rankStations,
@@ -25,6 +27,8 @@ export interface RankedStation {
 }
 
 export default function Dashboard() {
+  const { theme } = useTheme();
+
   const [vehicle, setVehicle] = useState<VehicleData>({
     kenteken: '',
     merk: 'Onbekend',
@@ -45,14 +49,13 @@ export default function Dashboard() {
   const [routeLoading, setRouteLoading] = useState(false);
 
   const currentLiters = vehicle.tankinhoud * (currentTankPercent / 100);
-  // Convert "1 op X km" to L/100km
   const fuelUseL100 = 100 / vehicle.verbruik;
 
   useEffect(() => {
     setNlPrice(DEFAULT_PRICES.nl[fuelType]);
   }, [fuelType]);
 
-  // Fetch crossings + stations when location changes (the expensive step)
+  // Fetch crossings + stations when location changes
   useEffect(() => {
     if (!userLocation) return;
     setLoading(true);
@@ -68,17 +71,10 @@ export default function Dashboard() {
       });
   }, [userLocation]);
 
-  // Rank stations instantly whenever any input parameter changes
+  // Rank instantly on any parameter change
   const allRanked = useMemo(() => {
     if (!stationOptions.length) return [];
-    return rankStations(
-      stationOptions,
-      fuelType,
-      fuelUseL100,
-      currentLiters,
-      vehicle.tankinhoud,
-      nlPrice
-    );
+    return rankStations(stationOptions, fuelType, fuelUseL100, currentLiters, vehicle.tankinhoud, nlPrice);
   }, [stationOptions, fuelType, fuelUseL100, currentLiters, vehicle.tankinhoud, nlPrice]);
 
   const top3 = useMemo<RankedStation[]>(() => {
@@ -96,37 +92,32 @@ export default function Dashboard() {
     }));
   }, [allRanked]);
 
-  // Auto-select best station when rankings change
+  // Auto-select best station
   useEffect(() => {
     if (top3.length === 0) {
       setSelectedStation(null);
       return;
     }
-    const currentInList = selectedStation && top3.some(r => r.station.id === selectedStation.id);
-    if (!currentInList) {
-      setSelectedStation(top3[0].station);
-    }
+    const currentInList = selectedStation && top3.some((r) => r.station.id === selectedStation.id);
+    if (!currentInList) setSelectedStation(top3[0].station);
   }, [top3]);
 
-  // Fetch two-leg route when selected station changes: home → crossing → station
+  // Two-leg route: home → crossing → station
   useEffect(() => {
     if (!selectedStation || !userLocation) {
       setRoute(null);
       return;
     }
-    const ranked = top3.find(r => r.station.id === selectedStation.id);
+    const ranked = top3.find((r) => r.station.id === selectedStation.id);
     if (!ranked) {
       setRoute(null);
       return;
     }
-
     setRouteLoading(true);
-    // Fetch second leg: crossing → station
     fetchRoute(ranked.crossingLat, ranked.crossingLng, selectedStation.lat, selectedStation.lng)
       .then((legRoute) => {
         if (legRoute && ranked.routeHomeToCrossing.length) {
           setRoute({
-            // Concatenate both legs for the map polyline
             coordinates: [...ranked.routeHomeToCrossing, ...legRoute.coordinates],
             distanceKm: Math.round((ranked.distHomeCrossingKm + legRoute.distanceKm) * 10) / 10,
             durationMin: ranked.durationHomeCrossingMin + legRoute.durationMin,
@@ -138,11 +129,12 @@ export default function Dashboard() {
       .finally(() => setRouteLoading(false));
   }, [selectedStation, userLocation]);
 
-  const allMapStations = useMemo(() => allRanked.map(r => r.station), [allRanked]);
+  const allMapStations = useMemo(() => allRanked.map((r) => r.station), [allRanked]);
 
   return (
     <div className="flex h-[calc(100vh-3.5rem)] pt-14">
-      <div className="w-80 shrink-0 border-r border-border bg-card/50 backdrop-blur-sm lg:w-96">
+      {/* Left column: settings */}
+      <div className="w-72 shrink-0 overflow-y-auto border-r border-border bg-card/60 backdrop-blur-sm">
         <DashboardSidebar
           vehicle={vehicle}
           onVehicleChange={setVehicle}
@@ -154,11 +146,6 @@ export default function Dashboard() {
           currentTankPercent={currentTankPercent}
           onTankPercentChange={setCurrentTankPercent}
           currentLiters={currentLiters}
-          top3={top3}
-          selectedStation={selectedStation}
-          onSelectStation={setSelectedStation}
-          route={route}
-          routeLoading={routeLoading}
           hasLocation={!!userLocation}
           stationsLoading={loading}
           stationsCount={stationOptions.length}
@@ -166,6 +153,7 @@ export default function Dashboard() {
         />
       </div>
 
+      {/* Center: map */}
       <div className="relative flex-1">
         <FuelMap
           stations={top3.map((r) => r.station)}
@@ -180,8 +168,23 @@ export default function Dashboard() {
           onStationClick={setSelectedStation}
           route={route}
           loading={loading}
+          isDark={theme === 'dark'}
         />
       </div>
+
+      {/* Right column: results — only shown when stations are loaded */}
+      {top3.length > 0 && (
+        <div className="w-72 shrink-0 border-l border-border bg-card/60 backdrop-blur-sm">
+          <StationsPanel
+            top3={top3}
+            selectedStation={selectedStation}
+            onSelectStation={setSelectedStation}
+            fuelType={fuelType}
+            route={route}
+            routeLoading={routeLoading}
+          />
+        </div>
+      )}
     </div>
   );
 }
