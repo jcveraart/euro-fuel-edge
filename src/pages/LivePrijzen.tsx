@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Fuel, ArrowDown, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { fetchGermanStations, DEFAULT_PRICES, DE_BORDER_POINTS } from '@/lib/api';
+import { fetchGermanStations, DEFAULT_PRICES, BORDER_CROSSINGS } from '@/lib/api';
 import type { FuelStation } from '@/lib/calculations';
 
 export default function LivePrijzen() {
@@ -13,7 +13,7 @@ export default function LivePrijzen() {
   const loadStations = async () => {
     setLoading(true);
     const all: FuelStation[] = [];
-    const fetches = DE_BORDER_POINTS.map((p) =>
+    const fetches = BORDER_CROSSINGS.map((p) =>
       fetchGermanStations(p.lat, p.lng, 15, fuelType)
     );
     const results = await Promise.all(fetches);

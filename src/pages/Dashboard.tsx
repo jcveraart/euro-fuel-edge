@@ -1,14 +1,27 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { DashboardSidebar } from '@/components/DashboardSidebar';
 import { FuelMap } from '@/components/FuelMap';
-import { fetchStationsForLocation, fetchRoute, DEFAULT_PRICES, type RouteData } from '@/lib/api';
+import {
+  fetchCrossingsAndStations,
+  rankStations,
+  fetchRoute,
+  DEFAULT_PRICES,
+  type RouteData,
+  type StationOption,
+} from '@/lib/api';
 import type { FuelStation, VehicleData } from '@/lib/calculations';
-import { calculateNetProfit } from '@/lib/calculations';
 
 export interface RankedStation {
   station: FuelStation;
   profit: number;
   rank: number;
+  crossingName: string;
+  distHomeCrossingKm: number;
+  durationHomeCrossingMin: number;
+  distCrossingStationKm: number;
+  routeHomeToCrossing: [number, number][];
+  crossingLat: number;
+  crossingLng: number;
 }
 
 export default function Dashboard() {
@@ -23,82 +36,109 @@ export default function Dashboard() {
   const [fuelType, setFuelType] = useState<'e5' | 'e10' | 'diesel'>('e5');
   const [nlPrice, setNlPrice] = useState(DEFAULT_PRICES.nl.e5);
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number; display: string } | null>(null);
-  const [allStations, setAllStations] = useState<FuelStation[]>([]);
+  const [stationOptions, setStationOptions] = useState<StationOption[]>([]);
   const [loading, setLoading] = useState(false);
+  const [loadingMsg, setLoadingMsg] = useState('');
   const [currentTankPercent, setCurrentTankPercent] = useState(50);
-  const [top3, setTop3] = useState<RankedStation[]>([]);
   const [selectedStation, setSelectedStation] = useState<FuelStation | null>(null);
   const [route, setRoute] = useState<RouteData | null>(null);
   const [routeLoading, setRouteLoading] = useState(false);
 
   const currentLiters = vehicle.tankinhoud * (currentTankPercent / 100);
+  // Convert "1 op X km" to L/100km
+  const fuelUseL100 = 100 / vehicle.verbruik;
 
   useEffect(() => {
     setNlPrice(DEFAULT_PRICES.nl[fuelType]);
   }, [fuelType]);
 
-  // Fetch stations whenever location or fuel type changes
+  // Fetch crossings + stations when location changes (the expensive step)
   useEffect(() => {
     if (!userLocation) return;
     setLoading(true);
-    setAllStations([]);
-    setTop3([]);
+    setStationOptions([]);
     setSelectedStation(null);
     setRoute(null);
 
-    fetchStationsForLocation(userLocation.lat, userLocation.lng, fuelType)
-      .then((results) => {
-        setAllStations(results);
-      })
-      .finally(() => setLoading(false));
-  }, [userLocation, fuelType]);
+    fetchCrossingsAndStations(userLocation.lat, userLocation.lng, setLoadingMsg)
+      .then(setStationOptions)
+      .finally(() => {
+        setLoading(false);
+        setLoadingMsg('');
+      });
+  }, [userLocation]);
 
-  // From all stations: take 10 closest, rank by savings, pick top 3
+  // Rank stations instantly whenever any input parameter changes
+  const allRanked = useMemo(() => {
+    if (!stationOptions.length) return [];
+    return rankStations(
+      stationOptions,
+      fuelType,
+      fuelUseL100,
+      currentLiters,
+      vehicle.tankinhoud,
+      nlPrice
+    );
+  }, [stationOptions, fuelType, fuelUseL100, currentLiters, vehicle.tankinhoud, nlPrice]);
+
+  const top3 = useMemo<RankedStation[]>(() => {
+    return allRanked.slice(0, 3).map((r, i) => ({
+      station: r.station,
+      profit: r.netSavings,
+      rank: i + 1,
+      crossingName: r.crossingName,
+      distHomeCrossingKm: r.distHomeCrossingKm,
+      durationHomeCrossingMin: r.durationHomeCrossingMin,
+      distCrossingStationKm: r.distCrossingStationKm,
+      routeHomeToCrossing: r.routeHomeToCrossing,
+      crossingLat: r.crossingLat,
+      crossingLng: r.crossingLng,
+    }));
+  }, [allRanked]);
+
+  // Auto-select best station when rankings change
   useEffect(() => {
-    if (!userLocation || !allStations.length) {
-      setTop3([]);
+    if (top3.length === 0) {
       setSelectedStation(null);
       return;
     }
+    const currentInList = selectedStation && top3.some(r => r.station.id === selectedStation.id);
+    if (!currentInList) {
+      setSelectedStation(top3[0].station);
+    }
+  }, [top3]);
 
-    // Stations are already sorted by dist (sort=dist from API)
-    // Take the 10 closest that have a price for this fuel type
-    const closest10 = allStations
-      .filter((s) => s[fuelType] != null)
-      .slice(0, 10);
-
-    // Score each by net savings
-    const scored = closest10
-      .map((s) => ({
-        station: s,
-        profit: calculateNetProfit(
-          nlPrice,
-          s[fuelType]!,
-          vehicle.tankinhoud,
-          s.dist ?? 10,
-          vehicle.verbruik,
-          currentLiters
-        ),
-      }))
-      .sort((a, b) => b.profit - a.profit)
-      .slice(0, 3)
-      .map((x, i) => ({ ...x, rank: i + 1 }));
-
-    setTop3(scored);
-    setSelectedStation(scored[0]?.station ?? null);
-  }, [allStations, fuelType, nlPrice, currentLiters, vehicle.verbruik, vehicle.tankinhoud, userLocation]);
-
-  // Fetch route to selected station
+  // Fetch two-leg route when selected station changes: home → crossing → station
   useEffect(() => {
     if (!selectedStation || !userLocation) {
       setRoute(null);
       return;
     }
+    const ranked = top3.find(r => r.station.id === selectedStation.id);
+    if (!ranked) {
+      setRoute(null);
+      return;
+    }
+
     setRouteLoading(true);
-    fetchRoute(userLocation.lat, userLocation.lng, selectedStation.lat, selectedStation.lng)
-      .then(setRoute)
+    // Fetch second leg: crossing → station
+    fetchRoute(ranked.crossingLat, ranked.crossingLng, selectedStation.lat, selectedStation.lng)
+      .then((legRoute) => {
+        if (legRoute && ranked.routeHomeToCrossing.length) {
+          setRoute({
+            // Concatenate both legs for the map polyline
+            coordinates: [...ranked.routeHomeToCrossing, ...legRoute.coordinates],
+            distanceKm: Math.round((ranked.distHomeCrossingKm + legRoute.distanceKm) * 10) / 10,
+            durationMin: ranked.durationHomeCrossingMin + legRoute.durationMin,
+          });
+        } else {
+          setRoute(null);
+        }
+      })
       .finally(() => setRouteLoading(false));
   }, [selectedStation, userLocation]);
+
+  const allMapStations = useMemo(() => allRanked.map(r => r.station), [allRanked]);
 
   return (
     <div className="flex h-[calc(100vh-3.5rem)] pt-14">
@@ -121,14 +161,15 @@ export default function Dashboard() {
           routeLoading={routeLoading}
           hasLocation={!!userLocation}
           stationsLoading={loading}
-          stationsCount={allStations.length}
+          stationsCount={stationOptions.length}
+          loadingMsg={loadingMsg}
         />
       </div>
 
       <div className="relative flex-1">
         <FuelMap
           stations={top3.map((r) => r.station)}
-          allStations={allStations.filter((s) => s[fuelType] != null).slice(0, 10)}
+          allStations={allMapStations}
           userLocation={userLocation ? { lat: userLocation.lat, lng: userLocation.lng } : null}
           fuelType={fuelType}
           nlPrice={nlPrice}

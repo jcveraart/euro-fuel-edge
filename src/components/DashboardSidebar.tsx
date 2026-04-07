@@ -23,6 +23,7 @@ interface DashboardSidebarProps {
   hasLocation: boolean;
   stationsLoading: boolean;
   stationsCount: number;
+  loadingMsg?: string;
   onVehicleChange: (v: VehicleData) => void;
   onLocationChange: (loc: { lat: number; lng: number; display: string }) => void;
   onFuelTypeChange: (type: 'e5' | 'e10' | 'diesel') => void;
@@ -50,6 +51,7 @@ export function DashboardSidebar({
   onNlPriceChange,
   onTankPercentChange,
   onSelectStation,
+  loadingMsg,
 }: DashboardSidebarProps) {
   const [kenteken, setKenteken] = useState('');
   const [loadingKenteken, setLoadingKenteken] = useState(false);
@@ -196,7 +198,8 @@ export function DashboardSidebar({
       {/* Loading */}
       {stationsLoading && (
         <div className="flex items-center gap-2 rounded-lg border border-border bg-card p-3 text-xs text-muted-foreground">
-          <Loader2 className="h-3.5 w-3.5 animate-spin" /> Duitse stations zoeken...
+          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          {loadingMsg || 'Duitse stations zoeken...'}
         </div>
       )}
 
@@ -236,7 +239,9 @@ export function DashboardSidebar({
                       <span>{rankLabels[ranked.rank - 1]}</span>
                       <span className="truncate">{s.brand || s.name}</span>
                     </p>
-                    <p className="truncate text-xs text-muted-foreground">{s.place} · {(s.dist ?? 0).toFixed(1)} km</p>
+                    <p className="truncate text-xs text-muted-foreground">
+                      {s.place} · {(s.dist ?? 0).toFixed(1)} km · via {ranked.crossingName}
+                    </p>
                     <div className="mt-1.5 flex items-center gap-3">
                       <span className="font-mono text-sm font-bold text-primary">
                         €{price?.toFixed(3)}/L

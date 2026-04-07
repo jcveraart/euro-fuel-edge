@@ -1,6 +1,9 @@
 import type { FuelStation, VehicleData } from './calculations';
 
 const TANKERKOENIG_API_KEY = '201eeca2-d06c-4adc-ab5b-5bec8f5faf27';
+const ORS_API_KEY = '5b3ce3597851110001cf62488d691c9c01af4b5eb8f13165b19c9ee8';
+
+// ── RDW ────────────────────────────────────────────────────────────
 
 export async function fetchRDWData(kenteken: string): Promise<Partial<VehicleData> | null> {
   try {
@@ -26,7 +29,7 @@ export async function fetchRDWData(kenteken: string): Promise<Partial<VehicleDat
 
 export interface RDWFuelResult {
   brandstof: string | null;
-  verbruik: number | null; // 1 op X km (combined, l/100km converted)
+  verbruik: number | null;
 }
 
 export async function fetchRDWFuel(kenteken: string): Promise<RDWFuelResult> {
@@ -40,7 +43,6 @@ export async function fetchRDWFuel(kenteken: string): Promise<RDWFuelResult> {
     if (!data.length) return { brandstof: null, verbruik: null };
 
     const brandstof = data[0].brandstof_omschrijving || null;
-    // brandstof_verbruik_gecombineerd is in l/100km, convert to "1 op X km"
     const lPer100 = parseFloat(data[0].brandstof_verbruik_gecombineerd);
     const verbruik = lPer100 > 0 ? Math.round((100 / lPer100) * 2) / 2 : null;
 
@@ -50,12 +52,10 @@ export async function fetchRDWFuel(kenteken: string): Promise<RDWFuelResult> {
   }
 }
 
-// Fetch tank size from CarQuery API (free, no key needed)
-// Falls back to static lookup if API fails (e.g. CORS blocked)
+// ── Tank Size ──────────────────────────────────────────────────────
+
 export async function fetchTankSize(merk: string, model: string): Promise<number | null> {
-  // Normalize make name for CarQuery (RDW uses uppercase, e.g. "VOLKSWAGEN")
   const make = merk.toLowerCase().replace('mercedes-benz', 'mercedes').replace('bmw', 'bmw');
-  // Use first word of model for broader matching (e.g. "POLO TSI" → "polo")
   const keyword = (model || '').toLowerCase().split(/[\s\/]/)[0];
   if (!make || !keyword) return fallbackTankSize(model);
 
@@ -68,7 +68,6 @@ export async function fetchTankSize(merk: string, model: string): Promise<number
     const trims = data?.Trims;
     if (!Array.isArray(trims) || !trims.length) return fallbackTankSize(model);
 
-    // Find the most common fuel capacity among trims
     for (const trim of trims) {
       const cap = parseFloat(trim.model_fuel_cap_l);
       if (cap > 0) return Math.round(cap);
@@ -79,7 +78,6 @@ export async function fetchTankSize(merk: string, model: string): Promise<number
   }
 }
 
-// Fallback static lookup for when CarQuery is unavailable
 const TANK_SIZE_MAP: Record<string, number> = {
   'POLO': 40, 'GOLF': 50, 'PASSAT': 66, 'TIGUAN': 58, 'T-ROC': 50, 'UP': 35,
   'CORSA': 44, 'ASTRA': 50, 'MOKKA': 44, 'CROSSLAND': 44, 'GRANDLAND': 53,
@@ -107,7 +105,8 @@ function fallbackTankSize(model: string): number | null {
   return null;
 }
 
-// Haversine distance between two coordinates (km)
+// ── Haversine ──────────────────────────────────────────────────────
+
 export function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
   const R = 6371;
   const dLat = (lat2 - lat1) * Math.PI / 180;
@@ -116,108 +115,258 @@ export function haversineKm(lat1: number, lng1: number, lat2: number, lng2: numb
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-async function tankerkoenigFetch(url: string): Promise<any> {
-  // Try direct, then CORS proxy fallback
-  const attempts = [
-    () => fetch(url, { signal: AbortSignal.timeout(7000) }),
-    () => fetch(`https://corsproxy.io/?url=${encodeURIComponent(url)}`, { signal: AbortSignal.timeout(7000) }),
-  ];
-  for (const attempt of attempts) {
-    try {
-      const res = await attempt();
-      if (!res.ok) continue;
-      const raw = await res.json();
-      // corsproxy wraps response in { contents: "..." }
-      const data = typeof raw.contents === 'string' ? JSON.parse(raw.contents) : raw;
-      if (data?.ok) return data;
-    } catch {
-      // try next
-    }
-  }
-  console.error('Tankerkönig: all attempts failed');
-  return null;
-}
+// ── NL-DE Border Crossings (south → north) ────────────────────────
 
-export async function fetchGermanStations(
-  lat: number,
-  lng: number,
-  radius = 20,
-  fuelType: 'e5' | 'e10' | 'diesel' = 'e5'
-): Promise<FuelStation[]> {
-  const url = `https://creativecommons.tankerkoenig.de/json/list.php?lat=${lat}&lng=${lng}&rad=${radius}&sort=dist&type=${fuelType}&apikey=${TANKERKOENIG_API_KEY}`;
-  const data = await tankerkoenigFetch(url);
-  if (!data?.stations) return [];
-  return data.stations.map((s: any) => ({
-    id: s.id, name: s.name, brand: s.brand,
-    street: `${s.street} ${s.houseNumber || ''}`.trim(),
-    place: s.place, lat: s.lat, lng: s.lng,
-    e5: s.e5 || undefined, e10: s.e10 || undefined, diesel: s.diesel || undefined,
-    dist: s.dist, isOpen: s.isOpen, country: 'DE' as const,
-  }));
-}
+export const BORDER_CROSSINGS = [
+  { name: 'Maasbracht/Linne (N271)',        lat: 51.1530, lng: 5.9050 },
+  { name: 'Swalmen/Roermond (A73)',          lat: 51.1950, lng: 6.0350 },
+  { name: 'Venlo/Kaldenkirchen (A67)',       lat: 51.3702, lng: 6.1759 },
+  { name: 'Venlo/Straelen (N271)',           lat: 51.4150, lng: 6.1620 },
+  { name: 'Goch/Gennep (N271)',             lat: 51.6891, lng: 5.9891 },
+  { name: 'Nijmegen/Kranenburg (B9)',        lat: 51.7982, lng: 5.9855 },
+  { name: 'Zevenaar/Emmerich (A12)',         lat: 51.9213, lng: 6.0951 },
+  { name: 'Didam/Anholt (N316)',             lat: 51.8650, lng: 6.3710 },
+  { name: 'Doetinchem/Bocholt (N18)',        lat: 51.9127, lng: 6.5542 },
+  { name: 'Groenlo/Vreden (N18)',            lat: 51.9490, lng: 6.6790 },
+  { name: 'Winterswijk/Vreden (N319)',       lat: 51.9744, lng: 6.7241 },
+  { name: 'Winterswijk/Bocholt (N315)',      lat: 51.9210, lng: 6.7530 },
+  { name: 'Haaksbergen/Gronau (N350)',       lat: 52.1490, lng: 6.9650 },
+  { name: 'Enschede/Gronau (N35)',           lat: 52.2113, lng: 7.0059 },
+  { name: 'Oldenzaal/Gronau (A35)',          lat: 52.3038, lng: 7.0188 },
+  { name: 'De Lutte/Schüttorf (N343)',       lat: 52.3882, lng: 7.0275 },
+  { name: 'Hardenberg/Neuenhaus (N36)',      lat: 52.5188, lng: 6.8693 },
+  { name: 'Coevorden/Emlichheim (N34)',      lat: 52.5979, lng: 6.8029 },
+  { name: 'Emmen/Meppen (A37)',              lat: 52.6548, lng: 6.7413 },
+  { name: 'Stadskanaal/Zwartemeer (N374)',   lat: 52.7850, lng: 6.9850 },
+  { name: 'Ter Apel/Twist (N366)',           lat: 52.8723, lng: 7.0714 },
+  { name: 'Bourtange/Papenburg (N365)',      lat: 53.0100, lng: 7.1750 },
+  { name: 'Nieuw Statenzijl/Bunde (N33)',    lat: 53.2308, lng: 7.1875 },
+];
 
-// Fetch from all border crossing points, deduplicate, recalculate dist from user
-export async function fetchStationsForLocation(
-  userLat: number, userLng: number,
-  fuelType: 'e5' | 'e10' | 'diesel'
-): Promise<FuelStation[]> {
-  // Filter border points within 200km driving range
-  const points = DE_BORDER_POINTS.filter(
-    (p) => haversineKm(userLat, userLng, p.lat, p.lng) < 200
-  );
-
-  const batches = await Promise.all(
-    points.map((p) => fetchGermanStations(p.lat, p.lng, 20, fuelType))
-  );
-
-  const seen = new Map<string, FuelStation>();
-  for (const batch of batches) {
-    for (const s of batch) {
-      if (!seen.has(s.id)) {
-        seen.set(s.id, {
-          ...s,
-          dist: Math.round(haversineKm(userLat, userLng, s.lat, s.lng) * 10) / 10,
-        });
-      }
-    }
-  }
-  return Array.from(seen.values());
-}
-
-export interface GeocodeSuggestion {
-  lat: number;
-  lng: number;
-  display: string;
-}
+// ── Routing via OpenRouteService ───────────────────────────────────
 
 export interface RouteData {
-  coordinates: [number, number][]; // [lat, lng] pairs for Leaflet
+  coordinates: [number, number][]; // [lat, lng] for Leaflet
   distanceKm: number;
   durationMin: number;
 }
 
 export async function fetchRoute(
-  fromLat: number,
-  fromLng: number,
-  toLat: number,
-  toLng: number
+  fromLat: number, fromLng: number,
+  toLat: number, toLng: number
 ): Promise<RouteData | null> {
   try {
     const res = await fetch(
-      `https://router.project-osrm.org/route/v1/driving/${fromLng},${fromLat};${toLng},${toLat}?overview=full&geometries=geojson`
+      'https://api.openrouteservice.org/v2/directions/driving-car/geojson',
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': ORS_API_KEY,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          coordinates: [[fromLng, fromLat], [toLng, toLat]],
+          instructions: false,
+        }),
+        signal: AbortSignal.timeout(30000),
+      }
     );
     if (!res.ok) return null;
     const data = await res.json();
-    if (!data.routes?.length) return null;
-    const route = data.routes[0];
+    if (!data.features?.length) return null;
+    const f = data.features[0];
     return {
-      coordinates: route.geometry.coordinates.map(([lng, lat]: [number, number]) => [lat, lng] as [number, number]),
-      distanceKm: Math.round((route.distance / 1000) * 10) / 10,
-      durationMin: Math.round(route.duration / 60),
+      coordinates: f.geometry.coordinates.map(
+        ([lng, lat]: [number, number]) => [lat, lng] as [number, number]
+      ),
+      distanceKm: Math.round(f.properties.summary.distance / 100) / 10,
+      durationMin: Math.round(f.properties.summary.duration / 60),
     };
   } catch {
     return null;
   }
+}
+
+// ── Station Fetching (Tankerkönig, direct) ─────────────────────────
+
+export async function fetchGermanStations(
+  lat: number, lng: number,
+  radius = 10,
+  fuelType: 'e5' | 'e10' | 'diesel' | 'all' = 'all'
+): Promise<FuelStation[]> {
+  try {
+    const res = await fetch(
+      `https://creativecommons.tankerkoenig.de/json/list.php?lat=${lat}&lng=${lng}&rad=${radius}&type=${fuelType}&sort=dist&apikey=${TANKERKOENIG_API_KEY}`,
+      { signal: AbortSignal.timeout(15000) }
+    );
+    if (!res.ok) return [];
+    const data = await res.json();
+    if (!data?.ok) return [];
+    return (data.stations || [])
+      .filter((s: any) => s.e5 != null || s.e10 != null || s.diesel != null)
+      .map((s: any) => ({
+        id: s.id, name: s.name, brand: s.brand,
+        street: `${s.street} ${s.houseNumber || ''}`.trim(),
+        place: s.place, lat: s.lat, lng: s.lng,
+        e5: s.e5 || undefined, e10: s.e10 || undefined, diesel: s.diesel || undefined,
+        dist: s.dist, isOpen: s.isOpen, country: 'DE' as const,
+      }));
+  } catch {
+    return [];
+  }
+}
+
+// ── Main Pipeline ─────────────────────────────────────────────────
+
+interface CrossingRoute {
+  crossing: (typeof BORDER_CROSSINGS)[number];
+  route: RouteData;
+}
+
+export interface StationOption {
+  station: FuelStation;
+  crossing: CrossingRoute;
+}
+
+/**
+ * Step 1: Fetch crossings + stations (expensive — call on location change only).
+ * Routes to closest border crossings via ORS, picks top 3 fastest,
+ * then fetches Tankerkönig stations near each crossing.
+ */
+export async function fetchCrossingsAndStations(
+  userLat: number, userLng: number,
+  onProgress?: (msg: string) => void,
+): Promise<StationOption[]> {
+  // Sort crossings by haversine, take closest 6
+  const closest = BORDER_CROSSINGS
+    .map(c => ({ ...c, hDist: haversineKm(userLat, userLng, c.lat, c.lng) }))
+    .sort((a, b) => a.hDist - b.hDist)
+    .slice(0, 6);
+
+  onProgress?.('Routes naar grensovergangen berekenen...');
+
+  // Route to 6 crossings via ORS (parallel)
+  const crossingResults = await Promise.all(
+    closest.map(async (c) => {
+      const route = await fetchRoute(userLat, userLng, c.lat, c.lng);
+      return route ? { crossing: c, route } as CrossingRoute : null;
+    })
+  );
+
+  // Take top 3 by drive time
+  const top3Crossings = crossingResults
+    .filter((x): x is CrossingRoute => x !== null)
+    .sort((a, b) => a.route.durationMin - b.route.durationMin)
+    .slice(0, 3);
+
+  if (!top3Crossings.length) return [];
+
+  onProgress?.('Tankstations ophalen bij grensovergangen...');
+
+  // Fetch stations near top 3 crossings (parallel, type=all for all fuel prices)
+  const batches = await Promise.all(
+    top3Crossings.map(async (cr) => {
+      const stations = await fetchGermanStations(cr.crossing.lat, cr.crossing.lng, 10, 'all');
+      return stations.map(s => ({ station: s, crossing: cr } as StationOption));
+    })
+  );
+
+  // Deduplicate: keep station from the fastest crossing
+  const seen = new Map<string, StationOption>();
+  for (const batch of batches) {
+    for (const opt of batch) {
+      const existing = seen.get(opt.station.id);
+      if (!existing || opt.crossing.route.durationMin < existing.crossing.route.durationMin) {
+        seen.set(opt.station.id, opt);
+      }
+    }
+  }
+
+  return Array.from(seen.values());
+}
+
+/**
+ * Step 2: Rank stations by net savings (pure function, instant).
+ * Re-run when fuel type, tank level, consumption, or prices change.
+ *
+ * Net savings formula (from working script):
+ *   fuel_at_crossing = currentLiters - (dHomeCrossing / 100 * fuelUseL100)
+ *   fuel_at_station  = fuel_at_crossing - (dCrossingStation / 100 * fuelUseL100)
+ *   liters_bought    = tankSize - fuel_at_station
+ *   savings          = liters_bought * (nlPrice - dePrice)
+ *   trip_cost        = (2*dHomeCrossing + 2*dCrossingStation) / 100 * fuelUseL100 * nlPrice
+ *   net              = savings - trip_cost
+ */
+export interface RankedResult {
+  station: FuelStation;
+  crossingName: string;
+  distHomeCrossingKm: number;
+  durationHomeCrossingMin: number;
+  distCrossingStationKm: number;
+  routeHomeToCrossing: [number, number][];
+  crossingLat: number;
+  crossingLng: number;
+  netSavings: number;
+  litersBought: number;
+  dePrice: number;
+}
+
+export function rankStations(
+  options: StationOption[],
+  fuelType: 'e5' | 'e10' | 'diesel',
+  fuelUseL100: number,
+  currentLiters: number,
+  tankSize: number,
+  nlPrice: number,
+): RankedResult[] {
+  const results: RankedResult[] = [];
+
+  for (const opt of options) {
+    const price = opt.station[fuelType];
+    if (!price) continue;
+
+    const dHomeCrossing = opt.crossing.route.distanceKm;
+    const fuelAtCrossing = currentLiters - (dHomeCrossing / 100 * fuelUseL100);
+    if (fuelAtCrossing < 0) continue; // can't reach this crossing
+
+    const dCrossingStation = haversineKm(
+      opt.crossing.crossing.lat, opt.crossing.crossing.lng,
+      opt.station.lat, opt.station.lng
+    );
+
+    const fuelAtStation = Math.max(fuelAtCrossing - (dCrossingStation / 100 * fuelUseL100), 0);
+    const litersBought = Math.min(tankSize - fuelAtStation, tankSize);
+    const savings = litersBought * (nlPrice - price);
+    const tripCost = (2 * dHomeCrossing + 2 * dCrossingStation) / 100 * fuelUseL100 * nlPrice;
+    const netSavings = savings - tripCost;
+
+    results.push({
+      station: {
+        ...opt.station,
+        dist: Math.round((dHomeCrossing + dCrossingStation) * 10) / 10,
+      },
+      crossingName: opt.crossing.crossing.name,
+      distHomeCrossingKm: dHomeCrossing,
+      durationHomeCrossingMin: opt.crossing.route.durationMin,
+      distCrossingStationKm: Math.round(dCrossingStation * 10) / 10,
+      routeHomeToCrossing: opt.crossing.route.coordinates,
+      crossingLat: opt.crossing.crossing.lat,
+      crossingLng: opt.crossing.crossing.lng,
+      netSavings,
+      litersBought,
+      dePrice: price,
+    });
+  }
+
+  return results.sort((a, b) => b.netSavings - a.netSavings).slice(0, 5);
+}
+
+// ── Geocoding (unchanged) ──────────────────────────────────────────
+
+export interface GeocodeSuggestion {
+  lat: number;
+  lng: number;
+  display: string;
 }
 
 export async function geocodeSuggestions(
@@ -251,28 +400,9 @@ export async function geocodeAddress(
   return results[0] ?? null;
 }
 
-// Default NL/BE prices (user-editable)
+// ── Default Prices ─────────────────────────────────────────────────
+
 export const DEFAULT_PRICES = {
   nl: { e5: 2.15, e10: 2.09, diesel: 1.89 },
   be: { e5: 1.78, e10: 1.72, diesel: 1.69 },
 };
-
-// All Dutch-German border crossing points (north → south)
-export const DE_BORDER_POINTS = [
-  { name: 'Bunde',         lat: 53.180, lng: 7.230 },
-  { name: 'Nieuweschans',  lat: 53.190, lng: 7.060 },
-  { name: 'Ter Apel',      lat: 52.880, lng: 7.070 },
-  { name: 'Coevorden',     lat: 52.660, lng: 6.750 },
-  { name: 'Denekamp',      lat: 52.380, lng: 7.020 },
-  { name: 'Oldenzaal',     lat: 52.310, lng: 7.000 },
-  { name: 'Gronau',        lat: 52.210, lng: 7.020 },
-  { name: 'Bad Bentheim',  lat: 52.300, lng: 7.160 },
-  { name: 'Goch',          lat: 51.680, lng: 6.160 },
-  { name: 'Kleve',         lat: 51.790, lng: 6.140 },
-  { name: 'Emmerich',      lat: 51.830, lng: 6.250 },
-  { name: 'Venlo',         lat: 51.370, lng: 6.170 },
-  { name: 'Kaldenkirchen', lat: 51.320, lng: 6.200 },
-  { name: 'Roermond-DE',   lat: 51.200, lng: 6.100 },
-  { name: 'Aachen',        lat: 50.780, lng: 6.080 },
-  { name: 'Vaals',         lat: 50.770, lng: 6.020 },
-];
