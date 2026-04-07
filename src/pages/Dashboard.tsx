@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { DashboardSidebar } from '@/components/DashboardSidebar';
 import { FuelMap } from '@/components/FuelMap';
-import { fetchGermanStations, fetchRoute, DEFAULT_PRICES, type RouteData } from '@/lib/api';
+import { fetchStationsForLocation, fetchRoute, DEFAULT_PRICES, type RouteData } from '@/lib/api';
 import type { FuelStation, VehicleData } from '@/lib/calculations';
 import { calculateNetProfit } from '@/lib/calculations';
 
@@ -46,7 +46,7 @@ export default function Dashboard() {
     setSelectedStation(null);
     setRoute(null);
 
-    fetchGermanStations(userLocation.lat, userLocation.lng, 25, fuelType)
+    fetchStationsForLocation(userLocation.lat, userLocation.lng, fuelType)
       .then((results) => {
         setAllStations(results);
       })

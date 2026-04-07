@@ -107,39 +107,81 @@ function fallbackTankSize(model: string): number | null {
   return null;
 }
 
+// Haversine distance between two coordinates (km)
+export function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+async function tankerkoenigFetch(url: string): Promise<any> {
+  // Try direct, then CORS proxy fallback
+  const attempts = [
+    () => fetch(url, { signal: AbortSignal.timeout(7000) }),
+    () => fetch(`https://corsproxy.io/?url=${encodeURIComponent(url)}`, { signal: AbortSignal.timeout(7000) }),
+  ];
+  for (const attempt of attempts) {
+    try {
+      const res = await attempt();
+      if (!res.ok) continue;
+      const raw = await res.json();
+      // corsproxy wraps response in { contents: "..." }
+      const data = typeof raw.contents === 'string' ? JSON.parse(raw.contents) : raw;
+      if (data?.ok) return data;
+    } catch {
+      // try next
+    }
+  }
+  console.error('Tankerkönig: all attempts failed');
+  return null;
+}
+
 export async function fetchGermanStations(
   lat: number,
   lng: number,
-  radius: number = 25,
+  radius = 20,
   fuelType: 'e5' | 'e10' | 'diesel' = 'e5'
 ): Promise<FuelStation[]> {
-  try {
-    const res = await fetch(
-      `https://creativecommons.tankerkoenig.de/json/list.php?lat=${lat}&lng=${lng}&rad=${radius}&sort=dist&type=${fuelType}&apikey=${TANKERKOENIG_API_KEY}`
-    );
-    if (!res.ok) return [];
-    const data = await res.json();
-    if (!data.ok || !data.stations) return [];
+  const url = `https://creativecommons.tankerkoenig.de/json/list.php?lat=${lat}&lng=${lng}&rad=${radius}&sort=dist&type=${fuelType}&apikey=${TANKERKOENIG_API_KEY}`;
+  const data = await tankerkoenigFetch(url);
+  if (!data?.stations) return [];
+  return data.stations.map((s: any) => ({
+    id: s.id, name: s.name, brand: s.brand,
+    street: `${s.street} ${s.houseNumber || ''}`.trim(),
+    place: s.place, lat: s.lat, lng: s.lng,
+    e5: s.e5 || undefined, e10: s.e10 || undefined, diesel: s.diesel || undefined,
+    dist: s.dist, isOpen: s.isOpen, country: 'DE' as const,
+  }));
+}
 
-    return data.stations.map((s: any) => ({
-      id: s.id,
-      name: s.name,
-      brand: s.brand,
-      street: `${s.street} ${s.houseNumber || ''}`.trim(),
-      place: s.place,
-      lat: s.lat,
-      lng: s.lng,
-      e5: s.e5 || undefined,
-      e10: s.e10 || undefined,
-      diesel: s.diesel || undefined,
-      dist: s.dist,
-      isOpen: s.isOpen,
-      country: 'DE' as const,
-    }));
-  } catch (e) {
-    console.error('Tankerkönig fetch failed:', e);
-    return [];
+// Fetch from all border crossing points, deduplicate, recalculate dist from user
+export async function fetchStationsForLocation(
+  userLat: number, userLng: number,
+  fuelType: 'e5' | 'e10' | 'diesel'
+): Promise<FuelStation[]> {
+  // Filter border points within 200km driving range
+  const points = DE_BORDER_POINTS.filter(
+    (p) => haversineKm(userLat, userLng, p.lat, p.lng) < 200
+  );
+
+  const batches = await Promise.all(
+    points.map((p) => fetchGermanStations(p.lat, p.lng, 20, fuelType))
+  );
+
+  const seen = new Map<string, FuelStation>();
+  for (const batch of batches) {
+    for (const s of batch) {
+      if (!seen.has(s.id)) {
+        seen.set(s.id, {
+          ...s,
+          dist: Math.round(haversineKm(userLat, userLng, s.lat, s.lng) * 10) / 10,
+        });
+      }
+    }
   }
+  return Array.from(seen.values());
 }
 
 export interface GeocodeSuggestion {
@@ -215,14 +257,22 @@ export const DEFAULT_PRICES = {
   be: { e5: 1.78, e10: 1.72, diesel: 1.69 },
 };
 
-// Border crossing points for fetching stations
-export const BORDER_POINTS = {
-  de: [
-    { name: 'Venlo', lat: 51.3704, lng: 6.1724 },
-    { name: 'Aken/Aachen', lat: 50.7753, lng: 6.0839 },
-    { name: 'Emmerich', lat: 51.8292, lng: 6.2453 },
-    { name: 'Bad Bentheim', lat: 52.3036, lng: 7.1593 },
-    { name: 'Gronau', lat: 52.2093, lng: 7.0246 },
-    { name: 'Kleve', lat: 51.7879, lng: 6.1384 },
-  ],
-};
+// All Dutch-German border crossing points (north → south)
+export const DE_BORDER_POINTS = [
+  { name: 'Bunde',         lat: 53.180, lng: 7.230 },
+  { name: 'Nieuweschans',  lat: 53.190, lng: 7.060 },
+  { name: 'Ter Apel',      lat: 52.880, lng: 7.070 },
+  { name: 'Coevorden',     lat: 52.660, lng: 6.750 },
+  { name: 'Denekamp',      lat: 52.380, lng: 7.020 },
+  { name: 'Oldenzaal',     lat: 52.310, lng: 7.000 },
+  { name: 'Gronau',        lat: 52.210, lng: 7.020 },
+  { name: 'Bad Bentheim',  lat: 52.300, lng: 7.160 },
+  { name: 'Goch',          lat: 51.680, lng: 6.160 },
+  { name: 'Kleve',         lat: 51.790, lng: 6.140 },
+  { name: 'Emmerich',      lat: 51.830, lng: 6.250 },
+  { name: 'Venlo',         lat: 51.370, lng: 6.170 },
+  { name: 'Kaldenkirchen', lat: 51.320, lng: 6.200 },
+  { name: 'Roermond-DE',   lat: 51.200, lng: 6.100 },
+  { name: 'Aachen',        lat: 50.780, lng: 6.080 },
+  { name: 'Vaals',         lat: 50.770, lng: 6.020 },
+];
