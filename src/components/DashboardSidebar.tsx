@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Slider } from '@/components/ui/slider';
 import { Label } from '@/components/ui/label';
 import { AddressAutocomplete } from '@/components/AddressAutocomplete';
-import { fetchRDWData, fetchRDWFuel, fetchTankSize, DEFAULT_PRICES } from '@/lib/api';
+import { fetchRDWData, fetchRDWFuel, fetchTankSize } from '@/lib/api';
 import type { VehicleData } from '@/lib/calculations';
 import { toast } from 'sonner';
 
@@ -74,143 +74,128 @@ export function DashboardSidebar({
   }, [kenteken, vehicle, onVehicleChange, onFuelTypeChange]);
 
   const tankColor =
-    currentTankPercent <= 15
-      ? 'text-red-500'
-      : currentTankPercent <= 30
-      ? 'text-yellow-500'
-      : 'text-profit';
+    currentTankPercent <= 15 ? 'text-red-500'
+    : currentTankPercent <= 30 ? 'text-yellow-500'
+    : 'text-profit';
+
+  const box = 'rounded-xl border border-border bg-background p-2.5';
+  const lbl = 'text-[10px] font-semibold uppercase tracking-wider text-muted-foreground';
 
   return (
-    <div className="flex flex-col gap-3 p-4">
-      <div className="space-y-0.5 pb-1">
-        <h2 className="text-base font-bold text-foreground">Tankplanner</h2>
-        <p className="text-xs text-muted-foreground">Bereken je besparing</p>
+    <div className="flex flex-col gap-1.5 p-2.5">
+
+      {/* Location */}
+      <div className={box}>
+        <Label className={lbl}>Je Locatie</Label>
+        <div className="mt-1.5">
+          <AddressAutocomplete
+            onSelect={(loc) => { onLocationChange(loc); toast.success('Locatie gevonden'); }}
+          />
+        </div>
       </div>
 
-      {/* Location — at top (takes longest to load) */}
-      <div className="space-y-2 rounded-xl border border-border bg-background p-3">
-        <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-          Je Locatie
-        </Label>
-        <AddressAutocomplete
-          onSelect={(loc) => {
-            onLocationChange(loc);
-            toast.success('Locatie gevonden');
-          }}
-        />
-      </div>
-
-      {/* Loading progress */}
+      {/* Loading / warning */}
       {stationsLoading && (
-        <div className="flex items-center gap-2 rounded-xl border border-border bg-background p-3 text-xs text-muted-foreground">
-          <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin" />
+        <div className="flex items-center gap-2 rounded-xl border border-border bg-background px-2.5 py-2 text-xs text-muted-foreground">
+          <Loader2 className="h-3 w-3 shrink-0 animate-spin" />
           {loadingMsg || 'Stations zoeken...'}
         </div>
       )}
-
-      {/* No stations warning */}
       {hasLocation && !stationsLoading && stationsCount === 0 && (
-        <div className="rounded-xl border border-yellow-500/30 bg-yellow-500/10 p-3">
-          <p className="flex items-center gap-2 text-xs font-medium text-yellow-600 dark:text-yellow-400">
-            <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
-            Geen stations gevonden. Probeer een locatie dichter bij de grens.
+        <div className="rounded-xl border border-yellow-500/30 bg-yellow-500/10 px-2.5 py-2">
+          <p className="flex items-center gap-1.5 text-xs font-medium text-yellow-600 dark:text-yellow-400">
+            <AlertTriangle className="h-3 w-3 shrink-0" />
+            Geen stations gevonden. Probeer dichter bij de grens.
           </p>
         </div>
       )}
 
       {/* Kenteken */}
-      <div className="space-y-2 rounded-xl border border-border bg-background p-3">
-        <Label className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-          <Car className="h-3.5 w-3.5" /> Voertuig
+      <div className={box}>
+        <Label className={`${lbl} flex items-center gap-1.5`}>
+          <Car className="h-3 w-3" /> Voertuig
         </Label>
-        <div className="flex gap-2">
+        <div className="mt-1.5 flex gap-1.5">
           <Input
             placeholder="AB-123-CD"
             value={kenteken}
             onChange={(e) => setKenteken(e.target.value.toUpperCase())}
             onKeyDown={(e) => e.key === 'Enter' && lookupKenteken()}
-            className="font-mono text-sm uppercase"
+            className="h-8 font-mono text-sm uppercase"
           />
-          <Button size="sm" onClick={lookupKenteken} disabled={loadingKenteken}>
-            {loadingKenteken ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Search className="h-4 w-4" />
-            )}
+          <Button size="sm" className="h-8 w-8 shrink-0 p-0" onClick={lookupKenteken} disabled={loadingKenteken}>
+            {loadingKenteken ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Search className="h-3.5 w-3.5" />}
           </Button>
         </div>
         {vehicle.merk !== 'Onbekend' && (
-          <p className="text-xs text-primary">
-            {vehicle.merk} {vehicle.model} · {vehicle.brandstof}
-          </p>
+          <p className="mt-1 text-xs text-primary">{vehicle.merk} {vehicle.model} · {vehicle.brandstof}</p>
         )}
       </div>
 
-      {/* Verbruik & Tank */}
-      <div className="space-y-3 rounded-xl border border-border bg-background p-3">
-        <Label className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-          <Fuel className="h-3.5 w-3.5" /> Verbruik & Tank
+      {/* Rijgegevens: verbruik + tank + tankstand */}
+      <div className={box}>
+        <Label className={`${lbl} flex items-center gap-1.5`}>
+          <Fuel className="h-3 w-3" /> Rijgegevens
         </Label>
-        <div className="space-y-1.5">
-          <div className="flex justify-between">
-            <span className="text-xs text-muted-foreground">1 op</span>
-            <span className="font-mono text-sm">{vehicle.verbruik} km</span>
+        <div className="mt-2 space-y-2.5">
+          {/* Verbruik */}
+          <div>
+            <div className="flex justify-between">
+              <span className="text-xs text-muted-foreground">1 op</span>
+              <span className="font-mono text-xs font-medium">{vehicle.verbruik} km</span>
+            </div>
+            <Slider
+              className="mt-1"
+              value={[vehicle.verbruik]}
+              onValueChange={([v]) => onVehicleChange({ ...vehicle, verbruik: v })}
+              min={5} max={30} step={0.5}
+            />
           </div>
-          <Slider
-            value={[vehicle.verbruik]}
-            onValueChange={([v]) => onVehicleChange({ ...vehicle, verbruik: v })}
-            min={5} max={30} step={0.5}
-          />
-        </div>
-        <div className="space-y-1.5">
-          <div className="flex justify-between">
-            <span className="text-xs text-muted-foreground">Tankinhoud</span>
-            <span className="font-mono text-sm">{vehicle.tankinhoud} L</span>
+          {/* Tankinhoud */}
+          <div>
+            <div className="flex justify-between">
+              <span className="text-xs text-muted-foreground">Tankinhoud</span>
+              <span className="font-mono text-xs font-medium">{vehicle.tankinhoud} L</span>
+            </div>
+            <Slider
+              className="mt-1"
+              value={[vehicle.tankinhoud]}
+              onValueChange={([v]) => onVehicleChange({ ...vehicle, tankinhoud: v })}
+              min={20} max={100} step={5}
+            />
           </div>
-          <Slider
-            value={[vehicle.tankinhoud]}
-            onValueChange={([v]) => onVehicleChange({ ...vehicle, tankinhoud: v })}
-            min={20} max={100} step={5}
-          />
+          {/* Tankstand */}
+          <div>
+            <div className="flex justify-between">
+              <span className="text-xs text-muted-foreground">Huidige stand</span>
+              <span className={`font-mono text-xs font-semibold ${tankColor}`}>
+                {currentTankPercent}% · {currentLiters.toFixed(0)} L
+              </span>
+            </div>
+            <Slider
+              className="mt-1"
+              value={[currentTankPercent]}
+              onValueChange={([v]) => onTankPercentChange(v)}
+              min={0} max={100} step={5}
+            />
+            {currentTankPercent <= 15 && (
+              <p className="mt-1 flex items-center gap-1 text-xs text-red-500">
+                <AlertTriangle className="h-3 w-3" /> Tank bijna leeg!
+              </p>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* Current tank level */}
-      <div className="space-y-2 rounded-xl border border-border bg-background p-3">
-        <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-          Huidige Tankstand
-        </Label>
-        <div className="space-y-1.5">
-          <div className="flex justify-between">
-            <span className="text-xs text-muted-foreground">Vol</span>
-            <span className={`font-mono text-sm font-semibold ${tankColor}`}>
-              {currentTankPercent}% · {currentLiters.toFixed(0)} L
-            </span>
-          </div>
-          <Slider
-            value={[currentTankPercent]}
-            onValueChange={([v]) => onTankPercentChange(v)}
-            min={0} max={100} step={5}
-          />
-          {currentTankPercent <= 15 && (
-            <p className="flex items-center gap-1 text-xs text-red-500">
-              <AlertTriangle className="h-3 w-3" /> Tank bijna leeg!
-            </p>
-          )}
-        </div>
-      </div>
-
-      {/* Fuel type */}
-      <div className="space-y-2 rounded-xl border border-border bg-background p-3">
-        <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-          Brandstof
-        </Label>
-        <div className="grid grid-cols-3 gap-1.5">
+      {/* Brandstof + NL prijs */}
+      <div className={box}>
+        <Label className={lbl}>Brandstof</Label>
+        <div className="mt-1.5 grid grid-cols-3 gap-1">
           {(['e5', 'e10', 'diesel'] as const).map((ft) => (
             <button
               key={ft}
               onClick={() => onFuelTypeChange(ft)}
-              className={`rounded-lg px-2 py-1.5 text-xs font-semibold uppercase transition-colors ${
+              className={`rounded-lg py-1.5 text-xs font-semibold uppercase transition-colors ${
                 fuelType === ft
                   ? 'bg-primary text-primary-foreground'
                   : 'bg-secondary text-secondary-foreground hover:bg-accent'
@@ -220,24 +205,22 @@ export function DashboardSidebar({
             </button>
           ))}
         </div>
-      </div>
-
-      {/* NL price */}
-      <div className="space-y-2 rounded-xl border border-border bg-background p-3">
-        <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-          NL Prijs (€/L)
-        </Label>
-        <Input
-          type="number"
-          step="0.01"
-          value={nlPrice}
-          onChange={(e) => onNlPriceChange(parseFloat(e.target.value) || 0)}
-          className="font-mono"
-        />
+        <div className="mt-2">
+          <div className="flex items-center justify-between">
+            <Label className={lbl}>NL Prijs (€/L)</Label>
+          </div>
+          <Input
+            type="number"
+            step="0.001"
+            value={nlPrice}
+            onChange={(e) => onNlPriceChange(parseFloat(e.target.value) || 0)}
+            className="mt-1 h-8 font-mono text-sm"
+          />
+        </div>
       </div>
 
       {!hasLocation && (
-        <p className="pt-1 text-center text-xs text-muted-foreground">
+        <p className="pt-0.5 text-center text-xs text-muted-foreground">
           Voer je locatie in om te starten.
         </p>
       )}

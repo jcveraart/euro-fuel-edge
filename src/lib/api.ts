@@ -403,6 +403,6 @@ export async function geocodeAddress(
 // ── Default Prices ─────────────────────────────────────────────────
 
 export const DEFAULT_PRICES = {
-  nl: { e5: 2.15, e10: 2.09, diesel: 1.89 },
+  nl: { e5: 2.792, e10: 2.598, diesel: 2.810 },
   be: { e5: 1.78, e10: 1.72, diesel: 1.69 },
 };
