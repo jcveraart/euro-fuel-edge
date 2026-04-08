@@ -115,31 +115,78 @@ export function haversineKm(lat1: number, lng1: number, lat2: number, lng2: numb
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-// ── NL-DE Border Crossings (south → north) ────────────────────────
+// ── NL-DE Border Crossings (south → north, 56 crossings) ─────────
 
 export const BORDER_CROSSINGS = [
-  { name: 'Maasbracht/Linne (N271)',        lat: 51.1530, lng: 5.9050 },
+  // ── Limburg: Kreis Aachen / Städteregion Aachen ──
+  { name: 'Vaals/Aachen (N278)',             lat: 50.7680, lng: 6.0172 },
+  { name: 'Kerkrade/Herzogenrath (N300)',    lat: 50.8660, lng: 6.0666 },
+  { name: 'Nieuwenhagen/Merkstein',          lat: 50.9050, lng: 6.0830 },
+  // ── Limburg: Kreis Heinsberg ──
+  { name: 'Tüdderen/Selfkant (N8)',          lat: 51.0540, lng: 5.8770 },
+  { name: 'Born/Susteren (N272)',            lat: 51.0680, lng: 5.8820 },
+  { name: 'Posterholt/Heinsberg (N8)',       lat: 51.0870, lng: 6.0000 },
+  { name: 'Montfort/Heinsberg (N8)',         lat: 51.1020, lng: 5.9700 },
+  { name: 'Maasbracht/Linne (N271)',         lat: 51.1530, lng: 5.9050 },
+  { name: 'Roermond/Heinsberg (N272)',       lat: 51.1990, lng: 5.9780 },
   { name: 'Swalmen/Roermond (A73)',          lat: 51.1950, lng: 6.0350 },
+  // ── Limburg / Gelderland: Kreis Kleve ──
+  { name: 'Bergen/Venlo (N62)',              lat: 51.2720, lng: 6.0920 },
+  { name: 'Tegelen/Kempen (N62)',            lat: 51.3290, lng: 6.1480 },
   { name: 'Venlo/Kaldenkirchen (A67)',       lat: 51.3702, lng: 6.1759 },
   { name: 'Venlo/Straelen (N271)',           lat: 51.4150, lng: 6.1620 },
-  { name: 'Goch/Gennep (N271)',             lat: 51.6891, lng: 5.9891 },
+  { name: 'Arcen/Straelen (N271)',           lat: 51.4830, lng: 6.1740 },
+  { name: 'Well/Gennep (N271)',              lat: 51.5290, lng: 6.0980 },
+  { name: 'Vierlingsbeek/Gennep (N270)',     lat: 51.5875, lng: 6.0282 },
+  { name: 'Gennep/Goch (N271)',              lat: 51.6560, lng: 6.0100 },
+  { name: 'Mook/Goch (N271)',               lat: 51.6891, lng: 5.9891 },
+  { name: 'Groesbeek/Kleve (B9)',            lat: 51.7723, lng: 5.9558 },
   { name: 'Nijmegen/Kranenburg (B9)',        lat: 51.7982, lng: 5.9855 },
+  // ── Gelderland: Kreis Kleve / Kreis Wesel ──
+  { name: 'Millingen/Rees (B67)',            lat: 51.8641, lng: 6.0632 },
   { name: 'Zevenaar/Emmerich (A12)',         lat: 51.9213, lng: 6.0951 },
+  { name: 'Hummelo/Emmerich (N338)',         lat: 51.9020, lng: 6.2500 },
   { name: 'Didam/Anholt (N316)',             lat: 51.8650, lng: 6.3710 },
+  { name: '\'s-Heerenberg/Isselburg (N316)', lat: 51.8730, lng: 6.4400 },
+  { name: 'Netterden/Isselburg (N316)',      lat: 51.8870, lng: 6.4940 },
+  // ── Gelderland / Overijssel: Kreis Borken ──
+  { name: 'Dinxperlo/Bocholt (N317)',        lat: 51.8610, lng: 6.5588 },
   { name: 'Doetinchem/Bocholt (N18)',        lat: 51.9127, lng: 6.5542 },
+  { name: 'Aalten/Bocholt (N319)',           lat: 51.9250, lng: 6.5793 },
+  { name: 'Bredevoort/Stadtlohn (N319)',     lat: 51.9600, lng: 6.5980 },
+  { name: 'Lichtenvoorde/Vreden (N18)',      lat: 51.9880, lng: 6.5660 },
   { name: 'Groenlo/Vreden (N18)',            lat: 51.9490, lng: 6.6790 },
   { name: 'Winterswijk/Vreden (N319)',       lat: 51.9744, lng: 6.7241 },
   { name: 'Winterswijk/Bocholt (N315)',      lat: 51.9210, lng: 6.7530 },
+  // ── Overijssel: Kreis Borken / Kreis Steinfurt ──
+  { name: 'Eibergen/Vreden (N18)',           lat: 52.1010, lng: 6.6730 },
+  { name: 'Buurse/Gronau (N347)',            lat: 52.1020, lng: 6.8690 },
+  { name: 'Usselo/Gronau (N35)',             lat: 52.1790, lng: 6.9380 },
   { name: 'Haaksbergen/Gronau (N350)',       lat: 52.1490, lng: 6.9650 },
   { name: 'Enschede/Gronau (N35)',           lat: 52.2113, lng: 7.0059 },
+  { name: 'Losser/Gronau (N35)',             lat: 52.2610, lng: 7.0050 },
   { name: 'Oldenzaal/Gronau (A35)',          lat: 52.3038, lng: 7.0188 },
   { name: 'De Lutte/Schüttorf (N343)',       lat: 52.3882, lng: 7.0275 },
+  // ── Overijssel: Grafschaft Bentheim ──
+  { name: 'Denekamp/Nordhorn (N34)',         lat: 52.3755, lng: 7.0112 },
+  { name: 'Tubbergen/Nordhorn (N737)',       lat: 52.4190, lng: 6.9450 },
+  { name: 'Almelo/Nordhorn (N36)',           lat: 52.3530, lng: 6.8250 },
+  // ── Overijssel / Drenthe: Grafschaft Bentheim / Emsland ──
   { name: 'Hardenberg/Neuenhaus (N36)',      lat: 52.5188, lng: 6.8693 },
+  { name: 'Gramsbergen/Emlichheim (N34)',    lat: 52.5790, lng: 6.7900 },
   { name: 'Coevorden/Emlichheim (N34)',      lat: 52.5979, lng: 6.8029 },
+  { name: 'De Krim/Emlichheim (N36)',        lat: 52.6170, lng: 6.8100 },
+  // ── Drenthe: Emsland ──
   { name: 'Emmen/Meppen (A37)',              lat: 52.6548, lng: 6.7413 },
+  { name: 'Klazienaveen/Meppen (N34)',       lat: 52.7160, lng: 6.8620 },
+  // ── Groningen: Emsland / Leer ──
   { name: 'Stadskanaal/Zwartemeer (N374)',   lat: 52.7850, lng: 6.9850 },
+  { name: 'Sellingen/Neuenhaus (N366)',      lat: 52.8140, lng: 7.1200 },
   { name: 'Ter Apel/Twist (N366)',           lat: 52.8723, lng: 7.0714 },
+  { name: 'Vlagtwedde/Papenburg (N368)',     lat: 52.9410, lng: 7.1180 },
   { name: 'Bourtange/Papenburg (N365)',      lat: 53.0100, lng: 7.1750 },
+  { name: 'Bellingwolde/Bunde (N368)',       lat: 53.0900, lng: 7.2100 },
+  { name: 'Winschoten/Bunde (N7)',           lat: 53.1350, lng: 7.1800 },
   { name: 'Nieuw Statenzijl/Bunde (N33)',    lat: 53.2308, lng: 7.1875 },
 ];
 
@@ -237,11 +284,11 @@ export async function fetchCrossingsAndStations(
   userLat: number, userLng: number,
   onProgress?: (msg: string) => void,
 ): Promise<StationOption[]> {
-  // Sort crossings by haversine, take closest 6
+  // Sort crossings by haversine, take closest 8
   const closest = BORDER_CROSSINGS
     .map(c => ({ ...c, hDist: haversineKm(userLat, userLng, c.lat, c.lng) }))
     .sort((a, b) => a.hDist - b.hDist)
-    .slice(0, 6);
+    .slice(0, 8);
 
   onProgress?.('Routes naar grensovergangen berekenen...');
 
@@ -253,11 +300,11 @@ export async function fetchCrossingsAndStations(
     })
   );
 
-  // Take top 3 by drive time
+  // Take top 4 by drive time
   const top3Crossings = crossingResults
     .filter((x): x is CrossingRoute => x !== null)
     .sort((a, b) => a.route.durationMin - b.route.durationMin)
-    .slice(0, 3);
+    .slice(0, 4);
 
   if (!top3Crossings.length) return [];
 

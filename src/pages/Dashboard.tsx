@@ -78,7 +78,7 @@ export default function Dashboard() {
   }, [stationOptions, fuelType, fuelUseL100, currentLiters, vehicle.tankinhoud, nlPrice]);
 
   const top3 = useMemo<RankedStation[]>(() => {
-    return allRanked.slice(0, 3).map((r, i) => ({
+    return allRanked.slice(0, 5).map((r, i) => ({
       station: r.station,
       profit: r.netSavings,
       rank: i + 1,
