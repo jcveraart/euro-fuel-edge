@@ -115,14 +115,20 @@ export function haversineKm(lat1: number, lng1: number, lat2: number, lng2: numb
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-// ── NL-DE Border Crossings (south → north, 56 crossings) ─────────
+// ── NL-DE Border Crossings (south → north, 63 crossings) ─────────
 
 export const BORDER_CROSSINGS = [
-  // ── Limburg: Kreis Aachen / Städteregion Aachen ──
+  // ── Zuid-Limburg: Städteregion Aachen ──
   { name: 'Vaals/Aachen (N278)',             lat: 50.7680, lng: 6.0172 },
+  { name: 'Lemiers/Aachen (lokale weg)',     lat: 50.7820, lng: 6.0340 },
+  { name: 'Vijlen/Aachen (lokale weg)',      lat: 50.8020, lng: 6.0510 },
   { name: 'Kerkrade/Herzogenrath (N300)',    lat: 50.8660, lng: 6.0666 },
+  { name: 'Landgraaf/Herzogenrath (N30)',    lat: 50.8940, lng: 6.0680 },
   { name: 'Nieuwenhagen/Merkstein',          lat: 50.9050, lng: 6.0830 },
-  // ── Limburg: Kreis Heinsberg ──
+  // ── Zuid-Limburg: Kreis Heinsberg (Gangelt / Selfkant) ──
+  { name: 'Brunssum/Übach-Palenberg',       lat: 50.9360, lng: 5.9720 },
+  { name: 'Schinveld/Gangelt (N276)',        lat: 50.9880, lng: 5.9900 },
+  { name: 'Susteren/Gangelt (N274)',         lat: 51.0430, lng: 5.9080 },
   { name: 'Tüdderen/Selfkant (N8)',          lat: 51.0540, lng: 5.8770 },
   { name: 'Born/Susteren (N272)',            lat: 51.0680, lng: 5.8820 },
   { name: 'Posterholt/Heinsberg (N8)',       lat: 51.0870, lng: 6.0000 },
