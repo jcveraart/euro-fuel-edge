@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { Search, Loader2, Share2, Navigation, AlertTriangle, Clock } from 'lucide-react';
+import { Search, Car, Fuel, Loader2, Share2, Navigation, AlertTriangle, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Slider } from '@/components/ui/slider';
