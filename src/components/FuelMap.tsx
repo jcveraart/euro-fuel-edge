@@ -51,7 +51,7 @@ function MapController({ userLat, userLng, route }: { userLat: number | null; us
   useEffect(() => {
     if (route && route.coordinates.length > 1) {
       const bounds = L.latLngBounds(route.coordinates.map((c) => L.latLng(c[0], c[1])));
-      map.fitBounds(bounds, { paddingTopLeft: [420, 60], paddingBottomRight: [60, 60] });
+      map.fitBounds(bounds, { padding: [40, 40] });
     } else if (userLat !== null && userLng !== null) {
       map.flyTo([userLat, userLng], 11, { duration: 1.2 });
     }

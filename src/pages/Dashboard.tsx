@@ -130,8 +130,8 @@ export default function Dashboard() {
   };
 
   return (
-    /* Mobile: vertical stack. Desktop: fixed viewport height, side-by-side. */
-    <div className="flex flex-col pt-14 md:h-[calc(100vh-3.5rem)] md:flex-row">
+    /* Both mobile and desktop get fixed viewport height so flex-1 distributes space to the map. */
+    <div className="flex h-[100dvh] flex-col pt-14 md:flex-row">
 
       {/* ── Settings sidebar ── */}
       <div className="w-full shrink-0 border-b border-border bg-card/60 backdrop-blur-sm md:w-80 md:border-b-0 md:border-r lg:w-96">
@@ -159,8 +159,7 @@ export default function Dashboard() {
       </div>
 
       {/* ── Map ── */}
-      {/* Mobile: flex-1 so it fills all remaining space. Desktop: fills remaining space. */}
-      <div className="relative min-h-[180px] flex-1 md:h-auto">
+      <div className="relative min-h-[180px] flex-1">
         <FuelMap
           stations={top3.map((r) => r.station)}
           allStations={allMapStations}
