@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { Search, Car, Fuel, Loader2, Share2, Navigation, AlertTriangle, Clock, ChevronDown, ChevronUp } from 'lucide-react';
+import { Search, Loader2, Share2, Navigation, AlertTriangle, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Slider } from '@/components/ui/slider';
@@ -55,7 +55,6 @@ export function DashboardSidebar({
 }: DashboardSidebarProps) {
   const [kenteken, setKenteken] = useState('');
   const [loadingKenteken, setLoadingKenteken] = useState(false);
-  const [mobileExpanded, setMobileExpanded] = useState(false);
 
   const lookupKenteken = useCallback(async () => {
     if (!kenteken.trim()) return;
@@ -102,9 +101,7 @@ export function DashboardSidebar({
   const box = 'rounded-xl border border-border bg-background p-2.5';
   const lbl = 'text-[10px] font-semibold uppercase tracking-wider text-muted-foreground';
 
-  const vehicleSummary = vehicle.merk !== 'Onbekend' ? `${vehicle.merk} ${vehicle.model}` : 'Voertuig';
-
-  // ── Settings form (shared: mobile expanded + desktop) ──
+  // ── Settings form (desktop only) ──
   const settingsForm = (
     <div className="flex flex-col gap-1.5">
       {stationsLoading && (
@@ -293,52 +290,93 @@ export function DashboardSidebar({
         {resultsSection}
       </div>
 
-      {/* ── MOBILE (< md): compact with collapsible settings ── */}
-      <div className="flex flex-col gap-1.5 p-2.5 md:hidden">
-        {/* Location always visible */}
-        <div className={box}>
-          <Label className={lbl}>Je Locatie</Label>
-          <div className="mt-1.5">
-            <AddressAutocomplete
-              onSelect={(loc) => {
-                onLocationChange(loc);
-                toast.success('Locatie gevonden');
-                setMobileExpanded(false);
-              }}
+      {/* ── MOBILE (< md): ultra-compact flat settings ── */}
+      <div className="flex flex-col gap-1.5 px-2.5 py-2 md:hidden">
+
+        {/* Row 1: Location */}
+        <AddressAutocomplete
+          onSelect={(loc) => { onLocationChange(loc); toast.success('Locatie gevonden'); }}
+        />
+
+        {/* Row 2: Kenteken + Fuel type buttons + NL price */}
+        <div className="flex items-center gap-1.5">
+          <div className="flex min-w-0 flex-1 gap-1">
+            <Input
+              placeholder="Kenteken"
+              value={kenteken}
+              onChange={(e) => setKenteken(e.target.value.toUpperCase())}
+              onKeyDown={(e) => e.key === 'Enter' && lookupKenteken()}
+              className="h-8 min-w-0 flex-1 font-mono text-xs uppercase"
             />
+            <Button size="sm" className="h-8 w-8 shrink-0 p-0" onClick={lookupKenteken} disabled={loadingKenteken}>
+              {loadingKenteken ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Search className="h-3.5 w-3.5" />}
+            </Button>
+          </div>
+          <div className="flex shrink-0 overflow-hidden rounded-lg border border-border">
+            {(['e5', 'e10', 'diesel'] as const).map((ft) => (
+              <button key={ft} onClick={() => onFuelTypeChange(ft)}
+                className={`px-2 py-1.5 text-[10px] font-bold uppercase transition-colors ${
+                  fuelType === ft ? 'bg-primary text-primary-foreground' : 'bg-secondary text-secondary-foreground'
+                }`}>
+                {ft === 'diesel' ? 'D' : ft.toUpperCase()}
+              </button>
+            ))}
+          </div>
+          <Input
+            type="number" step="0.001" value={nlPrice}
+            onChange={(e) => onNlPriceChange(parseFloat(e.target.value) || 0)}
+            className="h-8 w-[4.5rem] shrink-0 font-mono text-xs"
+          />
+        </div>
+
+        {/* Row 3: 3 compact sliders side-by-side */}
+        <div className="flex items-center gap-2">
+          <div className="flex min-w-0 flex-1 flex-col">
+            <div className="flex justify-between text-[10px] text-muted-foreground">
+              <span>1op</span><span className="font-mono">{vehicle.verbruik}</span>
+            </div>
+            <Slider value={[vehicle.verbruik]}
+              onValueChange={([v]) => onVehicleChange({ ...vehicle, verbruik: v })}
+              min={5} max={30} step={0.5} className="mt-1" />
+          </div>
+          <div className="flex min-w-0 flex-1 flex-col">
+            <div className="flex justify-between text-[10px] text-muted-foreground">
+              <span>Tank</span><span className="font-mono">{vehicle.tankinhoud}L</span>
+            </div>
+            <Slider value={[vehicle.tankinhoud]}
+              onValueChange={([v]) => onVehicleChange({ ...vehicle, tankinhoud: v })}
+              min={20} max={100} step={5} className="mt-1" />
+          </div>
+          <div className="flex min-w-0 flex-1 flex-col">
+            <div className="flex justify-between text-[10px]">
+              <span className="text-muted-foreground">Vol</span>
+              <span className={`font-mono font-semibold ${tankColor}`}>{currentTankPercent}%</span>
+            </div>
+            <Slider value={[currentTankPercent]}
+              onValueChange={([v]) => onTankPercentChange(v)}
+              min={0} max={100} step={5} className="mt-1" />
           </div>
         </div>
 
-        {/* Loading indicator */}
-        {stationsLoading && (
-          <div className="flex items-center gap-2 rounded-xl border border-border bg-background px-2.5 py-2 text-xs text-muted-foreground">
-            <Loader2 className="h-3 w-3 shrink-0 animate-spin" />
-            {loadingMsg || 'Stations zoeken...'}
+        {/* Status line: vehicle name / loading / warning */}
+        {(vehicle.merk !== 'Onbekend' || stationsLoading || (hasLocation && !stationsLoading && stationsCount === 0)) && (
+          <div className="flex items-center gap-1.5 px-0.5">
+            {vehicle.merk !== 'Onbekend' && (
+              <span className="truncate text-xs text-primary">{vehicle.merk} {vehicle.model} · {vehicle.brandstof}</span>
+            )}
+            {stationsLoading && (
+              <div className="ml-auto flex items-center gap-1 text-[10px] text-muted-foreground">
+                <Loader2 className="h-3 w-3 animate-spin" />
+                {loadingMsg || 'Zoeken...'}
+              </div>
+            )}
+            {hasLocation && !stationsLoading && stationsCount === 0 && (
+              <span className="flex items-center gap-1 text-[10px] text-yellow-500">
+                <AlertTriangle className="h-3 w-3" /> Dichter bij de grens
+              </span>
+            )}
           </div>
         )}
-
-        {/* Tap-to-expand summary bar */}
-        <button
-          onClick={() => setMobileExpanded((v) => !v)}
-          className="flex w-full items-center justify-between rounded-xl border border-border bg-background px-3 py-2 text-left transition-colors active:bg-accent"
-        >
-          <div className="flex min-w-0 items-center gap-2">
-            <Car className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-            <span className="truncate text-xs font-medium text-foreground">{vehicleSummary}</span>
-            <span className="shrink-0 rounded-md bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold text-primary">
-              {fuelType.toUpperCase()}
-            </span>
-            <span className={`shrink-0 text-xs font-semibold ${tankColor}`}>{currentTankPercent}%</span>
-            <span className="shrink-0 text-xs text-muted-foreground">€{nlPrice.toFixed(2)}</span>
-          </div>
-          {mobileExpanded
-            ? <ChevronUp className="h-4 w-4 shrink-0 text-muted-foreground" />
-            : <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
-          }
-        </button>
-
-        {/* Expanded settings on mobile */}
-        {mobileExpanded && settingsForm}
       </div>
     </>
   );

@@ -159,8 +159,8 @@ export default function Dashboard() {
       </div>
 
       {/* ── Map ── */}
-      {/* Mobile: fixed height (~42vw). Desktop: fills remaining space. */}
-      <div className="relative h-[42vw] min-h-[200px] flex-1 md:h-auto">
+      {/* Mobile: flex-1 so it fills all remaining space. Desktop: fills remaining space. */}
+      <div className="relative min-h-[180px] flex-1 md:h-auto">
         <FuelMap
           stations={top3.map((r) => r.station)}
           allStations={allMapStations}
