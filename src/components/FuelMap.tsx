@@ -51,11 +51,19 @@ function hasValidCoords(lat: number, lng: number) {
 function MapController({ userLat, userLng, route }: { userLat: number | null; userLng: number | null; route: RouteData | null }) {
   const map = useMap();
   useEffect(() => {
-    if (route && route.coordinates.length > 1) {
-      const bounds = L.latLngBounds(route.coordinates.map((c) => L.latLng(c[0], c[1])));
-      map.fitBounds(bounds, { paddingTopLeft: [420, 60], paddingBottomRight: [60, 60] });
-    } else if (userLat !== null && userLng !== null) {
-      map.flyTo([userLat, userLng], 11, { duration: 1.2 });
+    // Skip if the map container is hidden / zero-size (e.g. desktop layout on mobile)
+    const size = map.getSize();
+    if (!size.x || !size.y) return;
+
+    try {
+      if (route && route.coordinates.length > 1) {
+        const bounds = L.latLngBounds(route.coordinates.map((c) => L.latLng(c[0], c[1])));
+        map.fitBounds(bounds, { paddingTopLeft: [420, 60], paddingBottomRight: [60, 60] });
+      } else if (userLat !== null && userLng !== null) {
+        map.flyTo([userLat, userLng], 11, { duration: 1.2 });
+      }
+    } catch {
+      // Map not ready
     }
   }, [userLat, userLng, route, map]);
   return null;
