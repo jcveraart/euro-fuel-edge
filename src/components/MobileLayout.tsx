@@ -1,8 +1,9 @@
 import { useState, useCallback } from 'react';
-import { SlidersHorizontal, Loader2, MapPin, Navigation, Fuel, Search } from 'lucide-react';
+import { SlidersHorizontal, Loader2, MapPin, Navigation, Fuel, Search, Droplets } from 'lucide-react';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { Slider } from '@/components/ui/slider';
 import { FuelMap } from '@/components/FuelMap';
 import { DashboardSidebar } from '@/components/DashboardSidebar';
 import { AddressAutocomplete } from '@/components/AddressAutocomplete';
@@ -84,8 +85,16 @@ export function MobileLayout({
   const openInMaps = (s: FuelStation) =>
     window.open(`https://www.google.com/maps/dir/?api=1&destination=${s.lat},${s.lng}&travelmode=driving`, '_blank');
 
+  const tankColor = currentTankPercent <= 15 ? 'text-red-500'
+                  : currentTankPercent <= 30 ? 'text-yellow-500'
+                  : 'text-profit';
+
   return (
-    <div className="flex h-[100dvh] flex-col overflow-hidden pt-14">
+    // pt accounts for fixed Navbar height + iOS safe-area-inset-top (Dynamic Island)
+    <div
+      className="flex h-[100dvh] flex-col overflow-hidden"
+      style={{ paddingTop: 'calc(3.5rem + env(safe-area-inset-top))' }}
+    >
 
       {/* ── Top bar ── */}
       <div className="shrink-0 border-b border-border bg-background/95 px-3 py-2 backdrop-blur-xl">
@@ -99,7 +108,7 @@ export function MobileLayout({
               value={kenteken}
               onChange={(e) => setKenteken(e.target.value.toUpperCase())}
               onKeyDown={(e) => e.key === 'Enter' && lookupKenteken()}
-              className="h-8 pr-2 font-mono text-sm uppercase"
+              className="h-8 pr-2 font-mono uppercase"
             />
             {vehicle.merk !== 'Onbekend' && (
               <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-medium text-primary">
@@ -141,6 +150,10 @@ export function MobileLayout({
           loading={loading}
           isDark={isDark}
         />
+        {/* Cover map while settings sheet is open to prevent Leaflet glitch */}
+        {settingsOpen && (
+          <div className="absolute inset-0 z-10 bg-background" />
+        )}
       </div>
 
       {/* ── Bottom stations panel ── */}
@@ -150,13 +163,27 @@ export function MobileLayout({
           <div className="h-1 w-8 rounded-full bg-muted-foreground/25" />
         </div>
 
+        {/* Tank level slider — always visible */}
+        <div className="flex items-center gap-2 px-3 pb-1.5 pt-0.5">
+          <Droplets className={`h-3.5 w-3.5 shrink-0 ${tankColor}`} />
+          <Slider
+            value={[currentTankPercent]}
+            onValueChange={([v]) => onTankPercentChange(v)}
+            min={0} max={100} step={5}
+            className="flex-1"
+          />
+          <span className={`w-14 text-right font-mono text-[10px] font-semibold shrink-0 ${tankColor}`}>
+            {currentTankPercent}% · {currentLiters.toFixed(0)}L
+          </span>
+        </div>
+
         {loading ? (
-          <div className="flex items-center justify-center gap-2 py-4 text-xs text-muted-foreground">
+          <div className="flex items-center justify-center gap-2 py-3 text-xs text-muted-foreground">
             <Loader2 className="h-3.5 w-3.5 animate-spin" />
             {loadingMsg || 'Stations zoeken...'}
           </div>
         ) : top3.length === 0 ? (
-          <div className="flex flex-col items-center gap-1 py-4">
+          <div className="flex flex-col items-center gap-1 py-3">
             <MapPin className="h-4 w-4 text-muted-foreground/50" />
             <p className="text-xs text-muted-foreground">Voer je locatie in voor de beste opties</p>
           </div>
