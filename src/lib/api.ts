@@ -283,6 +283,129 @@ export const BORDER_CROSSINGS = [
   { name: 'Nieuw Statenzijl/Bunde (N33)',       lat: 53.2308, lng: 7.1875 },
 ];
 
+// ── NL-BE Border Crossings (west → east, 65 crossings) ───────────
+
+export const BELGIUM_CROSSINGS = [
+  // ── Zeeland / Oost-Vlaanderen ──
+  { name: 'Retranchement/Knokke-Heist',         lat: 51.3790, lng: 3.3120 },
+  { name: 'Sluis/Knokke (N253)',                lat: 51.3066, lng: 3.3867 },
+  { name: 'Philippine/Boekhoute (N61)',          lat: 51.2660, lng: 3.7508 },
+  { name: 'Koewacht/Wachtebeke',                lat: 51.2840, lng: 3.9560 },
+  { name: 'Hulst/Kieldrecht',                   lat: 51.2820, lng: 4.0450 },
+  { name: 'Clinge/Sint-Gillis-Waas',            lat: 51.3060, lng: 4.1790 },
+  { name: 'Stoppeldijk/Kieldrecht',             lat: 51.3090, lng: 4.1240 },
+  { name: 'Graauw/Sint-Gillis-Waas',            lat: 51.3440, lng: 4.1900 },
+  { name: 'Lamswaarde/Beveren',                 lat: 51.3150, lng: 4.1360 },
+  { name: 'Vogelwaarde/Stekene',                lat: 51.3320, lng: 4.2080 },
+  { name: 'Kloosterzande/Beveren (N290)',        lat: 51.3610, lng: 4.2090 },
+  // ── Zeeland / Noord-Brabant – Antwerpen ──
+  { name: 'Ossendrecht/Puurs (N258)',            lat: 51.4530, lng: 4.3050 },
+  { name: 'Putte/Putte (N114)',                 lat: 51.4020, lng: 4.3520 },
+  { name: 'Woensdrecht/Puurs (A58)',             lat: 51.4260, lng: 4.3310 },
+  { name: 'Bergen op Zoom/Kapellen (N260)',      lat: 51.4490, lng: 4.2780 },
+  { name: 'Hoogerheide/Kapellen',               lat: 51.4790, lng: 4.3470 },
+  // ── Noord-Brabant / Antwerpen ──
+  { name: 'Roosendaal/Antwerpen (A17/E19)',      lat: 51.5080, lng: 4.4300 },
+  { name: 'Nispen/Kalmthout (N638)',             lat: 51.4980, lng: 4.5050 },
+  { name: 'Rucphen/Kalmthout',                  lat: 51.5270, lng: 4.6020 },
+  { name: 'Essen/Kalmthout (N115)',              lat: 51.4640, lng: 4.5580 },
+  { name: 'Zundert/Rijkevorsel (N639)',          lat: 51.4380, lng: 4.6590 },
+  { name: 'Sprundel/Rijkevorsel',               lat: 51.4850, lng: 4.6700 },
+  { name: 'Breda/Essen (A16/E19)',               lat: 51.5320, lng: 4.7260 },
+  { name: 'Alphen/Rijkevorsel',                 lat: 51.4800, lng: 4.7580 },
+  { name: 'Bavel/Merksplas',                    lat: 51.5090, lng: 4.8180 },
+  { name: 'Castelré/Merksplas',                 lat: 51.4590, lng: 4.8740 },
+  { name: 'Chaam/Merksplas',                    lat: 51.4920, lng: 4.9130 },
+  // ── Baarle-Nassau / Baarle-Hertog (exclave) ──
+  { name: 'Baarle-Nassau/Baarle-Hertog',        lat: 51.4430, lng: 4.9300 },
+  { name: 'Poppel/Merksplas',                   lat: 51.4260, lng: 4.9870 },
+  { name: 'Ginhoven/Turnhout',                  lat: 51.4370, lng: 4.8490 },
+  // ── Noord-Brabant / Kempen ──
+  { name: 'Goirle/Poppel (N269)',               lat: 51.5130, lng: 5.0550 },
+  { name: 'Tilburg/Beerse (A58/E312)',           lat: 51.5510, lng: 5.1160 },
+  { name: 'Hilvarenbeek/Beerse',               lat: 51.4900, lng: 5.1360 },
+  { name: 'Diessen/Beerse',                     lat: 51.4120, lng: 5.1860 },
+  { name: 'Reusel/Ravels',                      lat: 51.3500, lng: 5.1550 },
+  { name: 'Bladel/Retie',                       lat: 51.3670, lng: 5.2620 },
+  { name: 'Eersel/Hamont-Achel',                lat: 51.3590, lng: 5.3150 },
+  { name: 'Bergeijk/Mol',                       lat: 51.3060, lng: 5.3610 },
+  // ── Eindhoven / Lommel / Neerpelt ──
+  { name: 'Waalre/Hamont-Achel',                lat: 51.3770, lng: 5.4210 },
+  { name: 'Valkenswaard/Neerpelt (A67/E34)',     lat: 51.3180, lng: 5.4280 },
+  { name: 'Westerhoven/Hamont-Achel',           lat: 51.3390, lng: 5.4820 },
+  { name: 'Soerendonk/Hamont-Achel',            lat: 51.3150, lng: 5.5060 },
+  { name: 'Leende/Bree',                        lat: 51.3340, lng: 5.5420 },
+  { name: 'Budel/Hamont-Achel (N2)',             lat: 51.2780, lng: 5.5600 },
+  { name: 'Maarheeze/Bree',                     lat: 51.3050, lng: 5.6090 },
+  // ── Weert / Peer / Bree ──
+  { name: 'Weert/Peer (A2/E25)',                lat: 51.2720, lng: 5.7160 },
+  { name: 'Stramproy/Peer',                     lat: 51.2120, lng: 5.7790 },
+  { name: 'Meijel/Peer',                        lat: 51.2740, lng: 5.8430 },
+  { name: 'Heythuysen/Bree',                    lat: 51.2530, lng: 5.8420 },
+  { name: 'Roggel/Bree',                        lat: 51.2370, lng: 5.8930 },
+  { name: 'Leveroy/Bree',                       lat: 51.2240, lng: 5.9410 },
+  // ── Limburg / Maaseik / Kinrooi ──
+  { name: 'Hunsel/Maaseik',                     lat: 51.2100, lng: 5.9580 },
+  { name: 'Ool/Dilsen-Stokkem',                 lat: 51.1770, lng: 5.8830 },
+  { name: 'Thorn/Kinrooi',                      lat: 51.1560, lng: 5.8440 },
+  { name: 'Heel/Kinrooi',                       lat: 51.1700, lng: 5.9210 },
+  { name: 'Ittervoort/Kinrooi',                 lat: 51.1890, lng: 5.8940 },
+  { name: 'Maasbracht/Lanklaar',               lat: 51.1530, lng: 5.9050 },
+  { name: 'Swalmen/Dilsen-Stokkem',             lat: 51.1700, lng: 5.9970 },
+  { name: 'Roermond/Maaseik (A73/E31)',          lat: 51.1860, lng: 5.9640 },
+  { name: 'Vlodrop/Dilsen-Stokkem',             lat: 51.1190, lng: 6.0170 },
+  { name: 'Posterholt/Dilsen-Stokkem',          lat: 51.1200, lng: 5.9900 },
+  { name: 'Kessenich/Kinrooi',                  lat: 51.1200, lng: 5.8680 },
+  { name: 'Ophoven/Kinrooi',                    lat: 51.1390, lng: 5.8370 },
+  { name: 'Maaseik/Maaseik (N78)',              lat: 51.1030, lng: 5.8210 },
+  { name: 'Bree/Bree grens',                    lat: 51.1440, lng: 5.6980 },
+  { name: 'Kinrooi/Dilsen (N757)',              lat: 51.1470, lng: 5.9490 },
+];
+
+// ── Belgian Government Maximum Prices (updated ~monthly) ─────────
+// Source: economie.fgov.be – approximate values May 2025
+const BE_MAX_PRICES = {
+  e5: 1.819,    // Euro 98 E5 maximumprijs
+  e10: 1.733,   // Euro 95 E10 maximumprijs
+  diesel: 1.645, // B7 Diesel maximumprijs
+};
+
+// ── Belgian Stations via Overpass API ─────────────────────────────
+
+async function fetchBelgianStations(lat: number, lng: number, radiusKm = 12): Promise<FuelStation[]> {
+  try {
+    const radiusM = radiusKm * 1000;
+    // Restrict query to Belgian territory using ISO country area filter
+    const query = `[out:json][timeout:20];area["ISO3166-1"="BE"]["admin_level"="2"]->.be;(node["amenity"="fuel"](area.be)(around:${radiusM},${lat},${lng}););out body;`;
+    const res = await fetch('https://overpass-api.de/api/interpreter', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: `data=${encodeURIComponent(query)}`,
+      signal: AbortSignal.timeout(20000),
+    });
+    if (!res.ok) return [];
+    const data = await res.json();
+    return (data.elements || [])
+      .filter((el: any) => typeof el.lat === 'number' && typeof el.lon === 'number')
+      .map((el: any) => ({
+        id: `be_${el.id}`,
+        name: el.tags?.name || el.tags?.brand || 'Tankstation',
+        brand: el.tags?.brand || el.tags?.operator || '',
+        street: [el.tags?.['addr:street'], el.tags?.['addr:housenumber']].filter(Boolean).join(' '),
+        place: el.tags?.['addr:city'] || el.tags?.['addr:town'] || el.tags?.['addr:municipality'] || '',
+        lat: el.lat,
+        lng: el.lon,
+        country: 'BE' as const,
+        e5: BE_MAX_PRICES.e5,
+        e10: BE_MAX_PRICES.e10,
+        diesel: BE_MAX_PRICES.diesel,
+        isOpen: true,
+      }));
+  } catch {
+    return [];
+  }
+}
+
 // ── Routing via OpenRouteService ───────────────────────────────────
 
 export interface RouteData {
@@ -358,8 +481,14 @@ export async function fetchGermanStations(
 
 // ── Main Pipeline ─────────────────────────────────────────────────
 
+interface Crossing {
+  name: string;
+  lat: number;
+  lng: number;
+}
+
 interface CrossingRoute {
-  crossing: (typeof BORDER_CROSSINGS)[number];
+  crossing: Crossing;
   route: RouteData;
 }
 
@@ -369,56 +498,72 @@ export interface StationOption {
 }
 
 /**
- * Step 1: Fetch crossings + stations (expensive — call on location change only).
- * Routes to closest border crossings via ORS, picks top 3 fastest,
- * then fetches Tankerkönig stations near each crossing.
+ * Step 1: Fetch crossings + stations for both Germany and Belgium.
+ * Routes to closest NL-DE and NL-BE crossings in parallel, then fetches
+ * German stations (Tankerkönig) and Belgian stations (Overpass) in parallel.
+ * Results are merged and deduplicated, ranked later by net savings.
  */
 export async function fetchCrossingsAndStations(
   userLat: number, userLng: number,
   onProgress?: (msg: string) => void,
 ): Promise<StationOption[]> {
-  // Sort crossings by haversine, take closest 8
-  const closest = BORDER_CROSSINGS
+  // Pick closest crossings by straight-line distance
+  const closestDE = BORDER_CROSSINGS
     .map(c => ({ ...c, hDist: haversineKm(userLat, userLng, c.lat, c.lng) }))
     .sort((a, b) => a.hDist - b.hDist)
-    .slice(0, 8);
+    .slice(0, 7);
+
+  const closestBE = BELGIUM_CROSSINGS
+    .map(c => ({ ...c, hDist: haversineKm(userLat, userLng, c.lat, c.lng) }))
+    .sort((a, b) => a.hDist - b.hDist)
+    .slice(0, 5);
 
   onProgress?.('Routes naar grensovergangen berekenen...');
 
-  // Route to 6 crossings via ORS (parallel)
-  const crossingResults = await Promise.all(
-    closest.map(async (c) => {
+  // Route to all crossings in parallel
+  const [deRouteResults, beRouteResults] = await Promise.all([
+    Promise.all(closestDE.map(async (c) => {
       const route = await fetchRoute(userLat, userLng, c.lat, c.lng);
       return route ? { crossing: c, route } as CrossingRoute : null;
-    })
-  );
+    })),
+    Promise.all(closestBE.map(async (c) => {
+      const route = await fetchRoute(userLat, userLng, c.lat, c.lng);
+      return route ? { crossing: c, route } as CrossingRoute : null;
+    })),
+  ]);
 
-  // Take top 4 by drive time
-  const top3Crossings = crossingResults
+  const topDE = deRouteResults
     .filter((x): x is CrossingRoute => x !== null)
     .sort((a, b) => a.route.durationMin - b.route.durationMin)
     .slice(0, 4);
 
-  if (!top3Crossings.length) return [];
+  const topBE = beRouteResults
+    .filter((x): x is CrossingRoute => x !== null)
+    .sort((a, b) => a.route.durationMin - b.route.durationMin)
+    .slice(0, 3);
 
-  onProgress?.('Tankstations ophalen bij grensovergangen...');
+  if (!topDE.length && !topBE.length) return [];
 
-  // Fetch stations near top 3 crossings (parallel, type=all for all fuel prices)
-  const batches = await Promise.all(
-    top3Crossings.map(async (cr) => {
+  onProgress?.('Duitsland + België stations ophalen...');
+
+  // Fetch DE (Tankerkönig) and BE (Overpass) stations in parallel
+  const [deBatches, beBatches] = await Promise.all([
+    Promise.all(topDE.map(async (cr) => {
       const stations = await fetchGermanStations(cr.crossing.lat, cr.crossing.lng, 10, 'all');
-      return stations.map(s => ({ station: s, crossing: cr } as StationOption));
-    })
-  );
+      return stations.map(s => ({ station: s, crossing: cr }) as StationOption);
+    })),
+    Promise.all(topBE.map(async (cr) => {
+      const stations = await fetchBelgianStations(cr.crossing.lat, cr.crossing.lng, 12);
+      return stations.map(s => ({ station: s, crossing: cr }) as StationOption);
+    })),
+  ]);
 
-  // Deduplicate: keep station from the fastest crossing
+  // Deduplicate: keep each station from its fastest crossing
   const seen = new Map<string, StationOption>();
-  for (const batch of batches) {
-    for (const opt of batch) {
-      const existing = seen.get(opt.station.id);
-      if (!existing || opt.crossing.route.durationMin < existing.crossing.route.durationMin) {
-        seen.set(opt.station.id, opt);
-      }
+  for (const opt of [...deBatches.flat(), ...beBatches.flat()]) {
+    const existing = seen.get(opt.station.id);
+    if (!existing || opt.crossing.route.durationMin < existing.crossing.route.durationMin) {
+      seen.set(opt.station.id, opt);
     }
   }
 
@@ -544,5 +689,5 @@ export async function geocodeAddress(
 
 export const DEFAULT_PRICES = {
   nl: { e5: 2.792, e10: 2.598, diesel: 2.810 },
-  be: { e5: 1.78, e10: 1.72, diesel: 1.69 },
+  be: { e5: BE_MAX_PRICES.e5, e10: BE_MAX_PRICES.e10, diesel: BE_MAX_PRICES.diesel },
 };

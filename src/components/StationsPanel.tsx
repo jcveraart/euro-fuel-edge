@@ -71,6 +71,13 @@ export function StationsPanel({
                     <span className="truncate font-semibold leading-tight text-foreground">
                       {s.brand || s.name}
                     </span>
+                    <span className={`shrink-0 rounded px-1 py-0.5 text-[9px] font-bold ${
+                      s.country === 'BE'
+                        ? 'bg-yellow-400/20 text-yellow-700 dark:text-yellow-400'
+                        : 'bg-blue-500/15 text-blue-700 dark:text-blue-400'
+                    }`}>
+                      {s.country}
+                    </span>
                   </div>
                   <p className="truncate text-xs text-muted-foreground">{s.place}</p>
                   <p className="truncate text-[10px] text-muted-foreground/70">

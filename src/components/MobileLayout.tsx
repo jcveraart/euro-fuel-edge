@@ -226,10 +226,19 @@ export function MobileLayout({
                     )}
                   </div>
 
-                  <p className="text-xs font-semibold text-foreground leading-tight truncate">
-                    {s.brand || s.name}
-                  </p>
-                  <p className="text-[10px] text-muted-foreground truncate mt-0.5">
+                  <div className="flex items-center gap-1.5 mt-0.5">
+                    <p className="text-xs font-semibold text-foreground leading-tight truncate flex-1">
+                      {s.brand || s.name}
+                    </p>
+                    <span className={`shrink-0 rounded px-1 py-0.5 text-[9px] font-bold ${
+                      s.country === 'BE'
+                        ? 'bg-yellow-400/20 text-yellow-700 dark:text-yellow-400'
+                        : 'bg-blue-500/15 text-blue-700 dark:text-blue-400'
+                    }`}>
+                      {s.country}
+                    </span>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground truncate">
                     {s.place} · via {ranked.crossingName.split(' (')[0]}
                   </p>
 
