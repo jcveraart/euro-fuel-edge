@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { DashboardSidebar } from '@/components/DashboardSidebar';
 import { StationsPanel } from '@/components/StationsPanel';
 import { FuelMap } from '@/components/FuelMap';
+import { MobileLayout } from '@/components/MobileLayout';
 import { useTheme } from '@/context/ThemeContext';
 import {
   fetchCrossingsAndStations,
@@ -132,7 +133,36 @@ export default function Dashboard() {
   const allMapStations = useMemo(() => allRanked.map((r) => r.station), [allRanked]);
 
   return (
-    <div className="flex h-screen pt-14">
+    <>
+    {/* ── Mobile layout (< md) ── */}
+    <div className="md:hidden">
+      <MobileLayout
+        vehicle={vehicle}
+        fuelType={fuelType}
+        nlPrice={nlPrice}
+        currentTankPercent={currentTankPercent}
+        currentLiters={currentLiters}
+        top3={top3}
+        allMapStations={allMapStations}
+        selectedStation={selectedStation}
+        route={route}
+        loading={loading}
+        loadingMsg={loadingMsg}
+        stationsCount={stationOptions.length}
+        userLocation={userLocation}
+        hasLocation={!!userLocation}
+        isDark={theme === 'dark'}
+        onVehicleChange={setVehicle}
+        onLocationChange={(loc) => setUserLocation(loc)}
+        onFuelTypeChange={setFuelType}
+        onNlPriceChange={setNlPrice}
+        onTankPercentChange={setCurrentTankPercent}
+        onStationSelect={setSelectedStation}
+      />
+    </div>
+
+    {/* ── Desktop layout (≥ md) ── */}
+    <div className="hidden md:flex h-screen pt-14">
       {/* Left column: settings */}
       <div className="w-72 shrink-0 overflow-y-auto border-r border-border bg-card/60 backdrop-blur-sm">
         <DashboardSidebar
@@ -186,5 +216,6 @@ export default function Dashboard() {
         </div>
       )}
     </div>
+    </>
   );
 }
