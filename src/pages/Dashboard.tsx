@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { DashboardSidebar } from '@/components/DashboardSidebar';
 import { StationsPanel } from '@/components/StationsPanel';
 import { FuelMap } from '@/components/FuelMap';
@@ -132,6 +132,13 @@ export default function Dashboard() {
 
   const allMapStations = useMemo(() => allRanked.map((r) => r.station), [allRanked]);
 
+  // Only allow selecting stations that are in the ranked top-5 (so route + card highlighting work)
+  const handleStationSelect = useCallback((s: FuelStation) => {
+    if (top3.some((r) => r.station.id === s.id)) {
+      setSelectedStation(s);
+    }
+  }, [top3]);
+
   return (
     <>
     {/* ── Mobile layout (< md) ── */}
@@ -157,7 +164,7 @@ export default function Dashboard() {
         onFuelTypeChange={setFuelType}
         onNlPriceChange={setNlPrice}
         onTankPercentChange={setCurrentTankPercent}
-        onStationSelect={setSelectedStation}
+        onStationSelect={handleStationSelect}
       />
     </div>
 
@@ -195,7 +202,7 @@ export default function Dashboard() {
           tankSize={vehicle.tankinhoud}
           currentLiters={currentLiters}
           selectedStation={selectedStation}
-          onStationClick={setSelectedStation}
+          onStationClick={handleStationSelect}
           route={route}
           loading={loading}
           isDark={theme === 'dark'}
@@ -208,7 +215,7 @@ export default function Dashboard() {
           <StationsPanel
             top3={top3}
             selectedStation={selectedStation}
-            onSelectStation={setSelectedStation}
+            onSelectStation={handleStationSelect}
             fuelType={fuelType}
             route={route}
             routeLoading={routeLoading}
