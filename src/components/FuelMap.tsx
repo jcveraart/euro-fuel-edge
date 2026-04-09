@@ -48,24 +48,46 @@ function hasValidCoords(lat: number, lng: number) {
   return Number.isFinite(lat) && Number.isFinite(lng);
 }
 
-function MapController({ userLat, userLng, route }: { userLat: number | null; userLng: number | null; route: RouteData | null }) {
+function MapController({
+  userLat, userLng, route, stations,
+}: {
+  userLat: number | null;
+  userLng: number | null;
+  route: RouteData | null;
+  stations: FuelStation[];
+}) {
   const map = useMap();
+
+  // Fit route
   useEffect(() => {
-    // Skip if the map container is hidden / zero-size (e.g. desktop layout on mobile)
     const size = map.getSize();
     if (!size.x || !size.y) return;
-
+    if (!route || route.coordinates.length < 2) return;
     try {
-      if (route && route.coordinates.length > 1) {
-        const bounds = L.latLngBounds(route.coordinates.map((c) => L.latLng(c[0], c[1])));
-        map.fitBounds(bounds, { paddingTopLeft: [420, 60], paddingBottomRight: [60, 60] });
+      const bounds = L.latLngBounds(route.coordinates.map((c) => L.latLng(c[0], c[1])));
+      map.fitBounds(bounds, { paddingTopLeft: [320, 60], paddingBottomRight: [320, 60] });
+    } catch { /* map not ready */ }
+  }, [route, map]);
+
+  // Fit to overview: user location + all station markers
+  useEffect(() => {
+    const size = map.getSize();
+    if (!size.x || !size.y) return;
+    if (route) return; // route view takes precedence
+    try {
+      if (stations.length > 0 && userLat !== null && userLng !== null) {
+        const points: L.LatLngExpression[] = [
+          [userLat, userLng],
+          ...stations.filter(s => hasValidCoords(s.lat, s.lng)).map(s => [s.lat, s.lng] as [number, number]),
+        ];
+        const bounds = L.latLngBounds(points);
+        map.fitBounds(bounds, { padding: [70, 70] });
       } else if (userLat !== null && userLng !== null) {
         map.flyTo([userLat, userLng], 11, { duration: 1.2 });
       }
-    } catch {
-      // Map not ready
-    }
-  }, [userLat, userLng, route, map]);
+    } catch { /* map not ready */ }
+  }, [userLat, userLng, stations.length, route, map]);
+
   return null;
 }
 
@@ -153,6 +175,7 @@ export function FuelMap({
           userLat={safeUser?.lat ?? null}
           userLng={safeUser?.lng ?? null}
           route={route}
+          stations={[...top3WithProfit, ...otherStations]}
         />
 
         {/* User location */}

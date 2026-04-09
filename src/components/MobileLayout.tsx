@@ -115,66 +115,65 @@ export function MobileLayout({
             <p className="text-xs text-muted-foreground">Voer je locatie in voor de beste opties</p>
           </div>
         ) : (
-          <div className="max-h-[42vh] overflow-y-auto px-3 pb-safe pb-4">
-            <div className="flex flex-col gap-2">
-              {top3.map((ranked, i) => {
-                const s = ranked.station;
-                const price = s[fuelType];
-                const isSelected = selectedStation?.id === s.id;
+          /* Horizontal snap-scroll cards */
+          <div className="flex gap-3 overflow-x-auto px-3 pb-5 pt-1 snap-x snap-mandatory scrollbar-none"
+               style={{ WebkitOverflowScrolling: 'touch' }}>
+            {top3.map((ranked, i) => {
+              const s = ranked.station;
+              const price = s[fuelType];
+              const isSelected = selectedStation?.id === s.id;
 
-                return (
-                  <button
-                    key={s.id}
-                    onClick={() => onStationSelect(s)}
-                    className={`w-full rounded-xl border p-3 text-left transition-all ${
-                      isSelected
-                        ? 'border-primary/40 bg-primary/5'
-                        : 'border-border bg-background active:bg-accent/40'
-                    }`}
-                  >
-                    <div className="flex items-center gap-3">
-                      {/* Rank */}
-                      <span className="w-4 shrink-0 text-center text-[11px] font-bold text-muted-foreground">
-                        {i + 1}
-                      </span>
+              return (
+                <button
+                  key={s.id}
+                  onClick={() => onStationSelect(s)}
+                  className={`snap-start shrink-0 w-44 rounded-2xl border p-3.5 text-left transition-all ${
+                    isSelected
+                      ? 'border-primary/50 bg-primary/5 shadow-sm'
+                      : 'border-border bg-background active:scale-[0.97]'
+                  }`}
+                >
+                  {/* Rank + brand */}
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="flex h-5 w-5 items-center justify-center rounded-full bg-muted text-[10px] font-bold text-muted-foreground">
+                      {i + 1}
+                    </span>
+                    {isSelected && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); openInMaps(s); }}
+                        className="flex items-center justify-center rounded-lg bg-primary p-1.5 text-primary-foreground"
+                      >
+                        <Navigation className="h-3 w-3" />
+                      </button>
+                    )}
+                  </div>
 
-                      {/* Name + location */}
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-semibold text-foreground">
-                          {s.brand || s.name}
-                        </p>
-                        <p className="truncate text-[11px] text-muted-foreground">
-                          {s.place} · via {ranked.crossingName.split(' (')[0]}
-                        </p>
-                      </div>
+                  <p className="font-semibold text-sm text-foreground leading-tight truncate">
+                    {s.brand || s.name}
+                  </p>
+                  <p className="text-[11px] text-muted-foreground truncate mt-0.5">
+                    {s.place}
+                  </p>
+                  <p className="text-[10px] text-muted-foreground/70 truncate">
+                    via {ranked.crossingName.split(' (')[0]}
+                  </p>
 
-                      {/* Price + savings */}
-                      <div className="shrink-0 text-right">
-                        <p className={`font-mono text-base font-bold leading-tight ${
-                          ranked.profit > 0 ? 'text-profit' : 'text-loss'
-                        }`}>
-                          {ranked.profit > 0 ? '+' : ''}€{ranked.profit.toFixed(2)}
-                        </p>
-                        <p className="flex items-center justify-end gap-0.5 text-[11px] font-medium text-primary">
-                          <Fuel className="h-2.5 w-2.5" />
-                          €{price?.toFixed(3)}
-                        </p>
-                      </div>
-
-                      {/* Navigate button (selected only) */}
-                      {isSelected && (
-                        <button
-                          onClick={(e) => { e.stopPropagation(); openInMaps(s); }}
-                          className="shrink-0 rounded-lg bg-primary p-2 text-primary-foreground"
-                        >
-                          <Navigation className="h-3.5 w-3.5" />
-                        </button>
-                      )}
+                  <div className="mt-3 flex items-end justify-between">
+                    <div>
+                      <p className="flex items-center gap-0.5 text-xs font-semibold text-primary">
+                        <Fuel className="h-3 w-3" />
+                        €{price?.toFixed(3)}/L
+                      </p>
                     </div>
-                  </button>
-                );
-              })}
-            </div>
+                    <p className={`font-mono text-base font-bold leading-tight ${
+                      ranked.profit > 0 ? 'text-profit' : 'text-loss'
+                    }`}>
+                      {ranked.profit > 0 ? '+' : ''}€{ranked.profit.toFixed(2)}
+                    </p>
+                  </div>
+                </button>
+              );
+            })}
           </div>
         )}
       </div>
