@@ -172,7 +172,7 @@ export function FuelMap({
           Stations laden...
         </div>
       )}
-      <MapContainer center={defaultCenter} zoom={8} className="h-full w-full" zoomControl={false}>
+      <MapContainer center={defaultCenter} zoom={8} className="h-full w-full" zoomControl={false} attributionControl={false}>
         <TileLayer
           attribution='&copy; <a href="https://carto.com/">CARTO</a>'
           url={
