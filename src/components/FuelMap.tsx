@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useRef, useMemo } from 'react';
 import { Moon, Sun } from 'lucide-react';
 import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
 import L from 'leaflet';
@@ -57,12 +57,34 @@ function MapController({
   stations: FuelStation[];
 }) {
   const map = useMap();
+  // Track whether we've already done the initial route-fit for the current location session
+  const hasRouteFitRef = useRef(false);
 
-  // Fit to overview: user location + all station markers (runs once on load; stable after that)
+  // Reset when the user enters a new location
+  useEffect(() => {
+    hasRouteFitRef.current = false;
+  }, [userLat, userLng]);
+
+  // Fit to the first route that loads — gives a complete view of start + route + station.
+  // After that, the flag is set and subsequent station switches won't re-zoom.
+  useEffect(() => {
+    if (!route || route.coordinates.length < 2) return;
+    if (hasRouteFitRef.current) return;
+    const size = map.getSize();
+    if (!size.x || !size.y) return;
+    try {
+      const bounds = L.latLngBounds(route.coordinates.map((c) => L.latLng(c[0], c[1])));
+      map.fitBounds(bounds, { padding: [60, 60] });
+      hasRouteFitRef.current = true;
+    } catch { /* map not ready */ }
+  }, [route, map]);
+
+  // Fit to overview: user location + all station markers.
+  // Skipped once a route is active (route-fit above takes over).
   useEffect(() => {
     const size = map.getSize();
     if (!size.x || !size.y) return;
-    if (route) return; // route view takes precedence
+    if (route) return;
     try {
       if (stations.length > 0 && userLat !== null && userLng !== null) {
         const points: L.LatLngExpression[] = [
