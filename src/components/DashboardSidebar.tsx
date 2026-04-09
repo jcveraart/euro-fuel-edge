@@ -26,6 +26,20 @@ interface DashboardSidebarProps {
   onTankPercentChange: (pct: number) => void;
 }
 
+type VehicleCategory = 'auto' | 'bestelbus' | 'vrachtwagen';
+const VEHICLE_DEFAULTS: Record<VehicleCategory, { verbruik: number; tankinhoud: number }> = {
+  auto:        { verbruik: 15, tankinhoud: 50 },
+  bestelbus:   { verbruik: 10, tankinhoud: 70 },
+  vrachtwagen: { verbruik: 5,  tankinhoud: 400 },
+};
+function detectCategory(s?: string): VehicleCategory {
+  if (!s) return 'auto';
+  const l = s.toLowerCase();
+  if (l.includes('vracht')) return 'vrachtwagen';
+  if (l.includes('bestel') || l.includes('bedrijf')) return 'bestelbus';
+  return 'auto';
+}
+
 export function DashboardSidebar({
   vehicle,
   fuelType,
@@ -44,6 +58,13 @@ export function DashboardSidebar({
 }: DashboardSidebarProps) {
   const [kenteken, setKenteken] = useState('');
   const [loadingKenteken, setLoadingKenteken] = useState(false);
+  const [vehicleCategory, setVehicleCategory] = useState<VehicleCategory>('auto');
+
+  const applyCategory = (cat: VehicleCategory) => {
+    setVehicleCategory(cat);
+    onVehicleChange({ ...vehicle, ...VEHICLE_DEFAULTS[cat] });
+    if (cat === 'vrachtwagen') onFuelTypeChange('diesel');
+  };
 
   const lookupKenteken = useCallback(async () => {
     if (!kenteken.trim()) return;
@@ -54,13 +75,15 @@ export function DashboardSidebar({
         const brandstof = fuel.brandstof || rdw.brandstof || 'Benzine';
         const merk = rdw.merk || 'Onbekend';
         const model = rdw.model || 'Onbekend';
+        const cat = detectCategory(rdw.voertuigsoort);
         const tankSize = await fetchTankSize(merk, model);
+        setVehicleCategory(cat);
         onVehicleChange({
           ...vehicle,
           kenteken: rdw.kenteken || kenteken,
           merk, model, brandstof,
-          ...(fuel.verbruik ? { verbruik: fuel.verbruik } : {}),
-          ...(tankSize ? { tankinhoud: tankSize } : {}),
+          verbruik: fuel.verbruik ?? VEHICLE_DEFAULTS[cat].verbruik,
+          tankinhoud: tankSize ?? VEHICLE_DEFAULTS[cat].tankinhoud,
         });
         if (brandstof.toLowerCase().includes('diesel')) onFuelTypeChange('diesel');
         toast.success(`${merk} ${model} gevonden!`);
@@ -126,6 +149,21 @@ export function DashboardSidebar({
           <Button size="sm" className="h-8 w-8 shrink-0 p-0" onClick={lookupKenteken} disabled={loadingKenteken}>
             {loadingKenteken ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Search className="h-3.5 w-3.5" />}
           </Button>
+        </div>
+        <div className="mt-1.5 grid grid-cols-3 gap-1">
+          {(['auto', 'bestelbus', 'vrachtwagen'] as const).map((cat) => (
+            <button
+              key={cat}
+              onClick={() => applyCategory(cat)}
+              className={`rounded-lg py-1.5 text-[11px] font-semibold capitalize transition-colors ${
+                vehicleCategory === cat
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-secondary text-secondary-foreground hover:bg-accent'
+              }`}
+            >
+              {cat === 'auto' ? 'Auto' : cat === 'bestelbus' ? 'Bestelbus' : 'Vrachtwagen'}
+            </button>
+          ))}
         </div>
         {vehicle.merk !== 'Onbekend' && (
           <p className="mt-1 text-xs text-primary">{vehicle.merk} {vehicle.model} · {vehicle.brandstof}</p>

@@ -5,7 +5,7 @@ const ORS_API_KEY = '5b3ce3597851110001cf62488d691c9c01af4b5eb8f13165b19c9ee8';
 
 // ── RDW ────────────────────────────────────────────────────────────
 
-export async function fetchRDWData(kenteken: string): Promise<Partial<VehicleData> | null> {
+export async function fetchRDWData(kenteken: string): Promise<(Partial<VehicleData> & { voertuigsoort?: string }) | null> {
   try {
     const clean = kenteken.replace(/[-\s]/g, '').toUpperCase();
     const res = await fetch(
@@ -21,7 +21,8 @@ export async function fetchRDWData(kenteken: string): Promise<Partial<VehicleDat
       merk: vehicle.merk || 'Onbekend',
       model: vehicle.handelsbenaming || 'Onbekend',
       brandstof: vehicle.brandstof_omschrijving || 'Benzine',
-    };
+      voertuigsoort: vehicle.voertuigsoort as string | undefined,
+    } as Partial<VehicleData> & { voertuigsoort?: string };
   } catch {
     return null;
   }
