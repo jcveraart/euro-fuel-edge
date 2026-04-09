@@ -58,18 +58,7 @@ function MapController({
 }) {
   const map = useMap();
 
-  // Fit route
-  useEffect(() => {
-    const size = map.getSize();
-    if (!size.x || !size.y) return;
-    if (!route || route.coordinates.length < 2) return;
-    try {
-      const bounds = L.latLngBounds(route.coordinates.map((c) => L.latLng(c[0], c[1])));
-      map.fitBounds(bounds, { paddingTopLeft: [320, 60], paddingBottomRight: [320, 60] });
-    } catch { /* map not ready */ }
-  }, [route, map]);
-
-  // Fit to overview: user location + all station markers
+  // Fit to overview: user location + all station markers (runs once on load; stable after that)
   useEffect(() => {
     const size = map.getSize();
     if (!size.x || !size.y) return;
