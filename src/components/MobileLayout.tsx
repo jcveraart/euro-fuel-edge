@@ -131,6 +131,23 @@ export function MobileLayout({
             <SlidersHorizontal className="h-4 w-4" />
           </button>
         </div>
+
+        {/* Tank level slider */}
+        <div className="mt-2 flex items-center gap-2">
+          <div className="flex items-center gap-1 shrink-0">
+            <Droplets className={`h-3.5 w-3.5 ${tankColor}`} />
+            <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Tank</span>
+          </div>
+          <Slider
+            value={[currentTankPercent]}
+            onValueChange={([v]) => onTankPercentChange(v)}
+            min={0} max={100} step={5}
+            className="flex-1"
+          />
+          <span className={`w-16 text-right font-mono text-[11px] font-bold shrink-0 ${tankColor}`}>
+            {currentTankPercent}% · {currentLiters.toFixed(0)}L
+          </span>
+        </div>
       </div>
 
       {/* ── Map ── */}
@@ -161,20 +178,6 @@ export function MobileLayout({
         {/* Drag handle */}
         <div className="flex justify-center pb-0.5 pt-2">
           <div className="h-1 w-8 rounded-full bg-muted-foreground/25" />
-        </div>
-
-        {/* Tank level slider — always visible */}
-        <div className="flex items-center gap-2 px-3 pb-1.5 pt-0.5">
-          <Droplets className={`h-3.5 w-3.5 shrink-0 ${tankColor}`} />
-          <Slider
-            value={[currentTankPercent]}
-            onValueChange={([v]) => onTankPercentChange(v)}
-            min={0} max={100} step={5}
-            className="flex-1"
-          />
-          <span className={`w-14 text-right font-mono text-[10px] font-semibold shrink-0 ${tankColor}`}>
-            {currentTankPercent}% · {currentLiters.toFixed(0)}L
-          </span>
         </div>
 
         {loading ? (
