@@ -1,7 +1,6 @@
 import type { FuelStation, VehicleData } from './calculations';
 
 const TANKERKOENIG_API_KEY = '201eeca2-d06c-4adc-ab5b-5bec8f5faf27';
-const ORS_API_KEY = '5b3ce3597851110001cf62488d691c9c01af4b5eb8f13165b19c9ee8';
 
 // ── RDW ────────────────────────────────────────────────────────────
 
@@ -406,7 +405,7 @@ async function fetchBelgianStations(lat: number, lng: number, radiusKm = 12): Pr
   }
 }
 
-// ── Routing via OpenRouteService ───────────────────────────────────
+// ── Routing via OSRM (free, no API key, CORS-enabled) ─────────────
 
 export interface RouteData {
   coordinates: [number, number][]; // [lat, lng] for Leaflet
@@ -419,31 +418,21 @@ export async function fetchRoute(
   toLat: number, toLng: number
 ): Promise<RouteData | null> {
   try {
-    const res = await fetch(
-      'https://api.openrouteservice.org/v2/directions/driving-car/geojson',
-      {
-        method: 'POST',
-        headers: {
-          'Authorization': ORS_API_KEY,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          coordinates: [[fromLng, fromLat], [toLng, toLat]],
-          instructions: false,
-        }),
-        signal: AbortSignal.timeout(30000),
-      }
-    );
+    const url =
+      `https://router.project-osrm.org/route/v1/driving/` +
+      `${fromLng},${fromLat};${toLng},${toLat}` +
+      `?overview=full&geometries=geojson`;
+    const res = await fetch(url, { signal: AbortSignal.timeout(15000) });
     if (!res.ok) return null;
     const data = await res.json();
-    if (!data.features?.length) return null;
-    const f = data.features[0];
+    if (data.code !== 'Ok' || !data.routes?.length) return null;
+    const route = data.routes[0];
     return {
-      coordinates: f.geometry.coordinates.map(
+      coordinates: route.geometry.coordinates.map(
         ([lng, lat]: [number, number]) => [lat, lng] as [number, number]
       ),
-      distanceKm: Math.round(f.properties.summary.distance / 100) / 10,
-      durationMin: Math.round(f.properties.summary.duration / 60),
+      distanceKm: Math.round(route.distance / 100) / 10,
+      durationMin: Math.round(route.duration / 60),
     };
   } catch {
     return null;
@@ -508,15 +497,16 @@ export async function fetchCrossingsAndStations(
   onProgress?: (msg: string) => void,
 ): Promise<StationOption[]> {
   // Pick closest crossings by straight-line distance
+  // Keep routing calls low: 5 DE + 4 BE = 9 max (OSRM handles this easily)
   const closestDE = BORDER_CROSSINGS
     .map(c => ({ ...c, hDist: haversineKm(userLat, userLng, c.lat, c.lng) }))
     .sort((a, b) => a.hDist - b.hDist)
-    .slice(0, 7);
+    .slice(0, 5);
 
   const closestBE = BELGIUM_CROSSINGS
     .map(c => ({ ...c, hDist: haversineKm(userLat, userLng, c.lat, c.lng) }))
     .sort((a, b) => a.hDist - b.hDist)
-    .slice(0, 5);
+    .slice(0, 4);
 
   onProgress?.('Routes naar grensovergangen berekenen...');
 
