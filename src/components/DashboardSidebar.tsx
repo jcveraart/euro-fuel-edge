@@ -186,7 +186,9 @@ export function DashboardSidebar({
               className="mt-1"
               value={[vehicle.verbruik]}
               onValueChange={([v]) => onVehicleChange({ ...vehicle, verbruik: v })}
-              min={5} max={30} step={0.5}
+              min={vehicleCategory === 'vrachtwagen' ? 1 : 5}
+              max={vehicleCategory === 'vrachtwagen' ? 10 : 30}
+              step={0.5}
             />
           </div>
           {/* Tankinhoud */}
@@ -199,7 +201,9 @@ export function DashboardSidebar({
               className="mt-1"
               value={[vehicle.tankinhoud]}
               onValueChange={([v]) => onVehicleChange({ ...vehicle, tankinhoud: v })}
-              min={20} max={100} step={5}
+              min={vehicleCategory === 'vrachtwagen' ? 100 : 20}
+              max={vehicleCategory === 'vrachtwagen' ? 600 : vehicleCategory === 'bestelbus' ? 120 : 100}
+              step={vehicleCategory === 'vrachtwagen' ? 25 : 5}
             />
           </div>
           {/* Tankstand */}
