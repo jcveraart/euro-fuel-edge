@@ -132,7 +132,7 @@ export default function Dashboard() {
   const allMapStations = useMemo(() => allRanked.map((r) => r.station), [allRanked]);
 
   return (
-    <div className="flex h-[calc(100vh-3.5rem)] pt-14">
+    <div className="flex h-screen pt-14">
       {/* Left column: settings */}
       <div className="w-72 shrink-0 overflow-y-auto border-r border-border bg-card/60 backdrop-blur-sm">
         <DashboardSidebar

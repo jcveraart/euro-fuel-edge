@@ -5,7 +5,6 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Navbar } from "@/components/Navbar";
 import { ThemeProvider } from "@/context/ThemeContext";
-import { ThemeToggle } from "@/components/ThemeToggle";
 import Index from "./pages/Index";
 import LivePrijzen from "./pages/LivePrijzen";
 import BesparingsGids from "./pages/BesparingsGids";
@@ -27,7 +26,6 @@ const App = () => (
             <Route path="/gids" element={<BesparingsGids />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
-          <ThemeToggle />
         </BrowserRouter>
       </TooltipProvider>
     </QueryClientProvider>

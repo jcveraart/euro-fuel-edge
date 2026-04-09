@@ -1,9 +1,11 @@
 import { useEffect, useMemo } from 'react';
+import { Moon, Sun } from 'lucide-react';
 import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import type { FuelStation } from '@/lib/calculations';
 import { calculateNetProfit } from '@/lib/calculations';
 import type { RouteData } from '@/lib/api';
+import { useTheme } from '@/context/ThemeContext';
 
 delete (L.Icon.Default.prototype as any)._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -90,6 +92,7 @@ export function FuelMap({
   loading,
   isDark = true,
 }: FuelMapProps) {
+  const { theme, toggle } = useTheme();
   const safeUser = userLocation && hasValidCoords(userLocation.lat, userLocation.lng) ? userLocation : null;
   const defaultCenter: [number, number] = [52.2, 5.5];
 
@@ -114,6 +117,15 @@ export function FuelMap({
 
   return (
     <div className="relative h-full w-full">
+      {/* Floating theme toggle */}
+      <button
+        onClick={toggle}
+        className="absolute bottom-4 right-4 z-[1000] flex h-8 w-8 items-center justify-center rounded-full border border-border bg-card/90 shadow-lg backdrop-blur-sm transition-all hover:border-primary/40 hover:text-foreground text-muted-foreground"
+        title={theme === 'dark' ? 'Schakel naar lichte modus' : 'Schakel naar donkere modus'}
+      >
+        {theme === 'dark' ? <Sun className="h-3.5 w-3.5" /> : <Moon className="h-3.5 w-3.5" />}
+      </button>
+
       {loading && (
         <div className="absolute left-4 top-4 z-[1000] rounded-lg border border-border bg-card px-3 py-1.5 text-xs text-muted-foreground">
           Stations laden...
