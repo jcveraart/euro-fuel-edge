@@ -365,9 +365,9 @@ export const BELGIUM_CROSSINGS = [
 // ── Belgian Government Maximum Prices (updated ~monthly) ─────────
 // Source: economie.fgov.be – approximate values May 2025
 const BE_MAX_PRICES = {
-  e5: 1.819,    // Euro 98 E5 maximumprijs
-  e10: 1.733,   // Euro 95 E10 maximumprijs
-  diesel: 1.645, // B7 Diesel maximumprijs
+  e5: 2.027,    // Super 98 E5 maximumprijs  (09/04/2026)
+  e10: 1.945,   // Super 95 E10 maximumprijs (09/04/2026)
+  diesel: 2.489, // Diesel B7 maximumprijs   (09/04/2026)
 };
 
 // ── Belgian Stations via Overpass API ─────────────────────────────
