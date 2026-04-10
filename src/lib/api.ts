@@ -374,18 +374,26 @@ const BE_MAX_PRICES = {
 async function fetchBelgianStations(lat: number, lng: number, radiusKm = 12): Promise<FuelStation[]> {
   try {
     const radiusM = radiusKm * 1000;
-    // Restrict query to Belgian territory using ISO country area filter
-    const query = `[out:json][timeout:20];area["ISO3166-1"="BE"]["admin_level"="2"]->.be;(node["amenity"="fuel"](area.be)(around:${radiusM},${lat},${lng}););out body;`;
+    // Fast query: simple radius without slow 2-step area filter
+    const query = `[out:json][timeout:15];node["amenity"="fuel"](around:${radiusM},${lat},${lng});out body;`;
     const res = await fetch('https://overpass-api.de/api/interpreter', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: `data=${encodeURIComponent(query)}`,
-      signal: AbortSignal.timeout(20000),
+      signal: AbortSignal.timeout(15000),
     });
     if (!res.ok) return [];
     const data = await res.json();
     return (data.elements || [])
-      .filter((el: any) => typeof el.lat === 'number' && typeof el.lon === 'number')
+      .filter((el: any) => {
+        if (typeof el.lat !== 'number' || typeof el.lon !== 'number') return false;
+        // Filter to Belgian stations only (client-side, no slow area query)
+        const addrCountry = el.tags?.['addr:country'];
+        if (addrCountry) return addrCountry === 'BE';
+        // No country tag: use Belgium bounding box (49.4–51.55°N, 2.4–6.5°E)
+        // and require station to be at or south of the crossing (NL is north, BE is south)
+        return el.lat >= 49.4 && el.lat <= 51.55 && el.lon >= 2.4 && el.lon <= 6.5 && el.lat <= lat + 0.08;
+      })
       .map((el: any) => ({
         id: `be_${el.id}`,
         name: el.tags?.name || el.tags?.brand || 'Tankstation',
@@ -474,6 +482,7 @@ interface Crossing {
   name: string;
   lat: number;
   lng: number;
+  country: 'DE' | 'BE';
 }
 
 interface CrossingRoute {
@@ -488,69 +497,59 @@ export interface StationOption {
 
 /**
  * Step 1: Fetch crossings + stations for both Germany and Belgium.
- * Routes to closest NL-DE and NL-BE crossings in parallel, then fetches
- * German stations (Tankerkönig) and Belgian stations (Overpass) in parallel.
- * Results are merged and deduplicated, ranked later by net savings.
+ * Combines DE and BE crossings into ONE pool, picks the 7 closest overall,
+ * routes to them in parallel, then fetches stations (Tankerkönig for DE,
+ * Overpass for BE). This ensures e.g. Middelburg always routes to nearby
+ * Belgium instead of wasting calls on 170km-away German crossings.
  */
 export async function fetchCrossingsAndStations(
   userLat: number, userLng: number,
   onProgress?: (msg: string) => void,
 ): Promise<StationOption[]> {
-  // Pick closest crossings by straight-line distance
-  // Keep routing calls low: 5 DE + 4 BE = 9 max (OSRM handles this easily)
-  const closestDE = BORDER_CROSSINGS
+  // Combine all crossings, tag with country, sort by straight-line distance
+  const allCrossings: (Crossing & { hDist: number })[] = [
+    ...BORDER_CROSSINGS.map(c => ({ ...c, country: 'DE' as const })),
+    ...BELGIUM_CROSSINGS.map(c => ({ ...c, country: 'BE' as const })),
+  ]
     .map(c => ({ ...c, hDist: haversineKm(userLat, userLng, c.lat, c.lng) }))
-    .sort((a, b) => a.hDist - b.hDist)
-    .slice(0, 5);
+    .sort((a, b) => a.hDist - b.hDist);
 
-  const closestBE = BELGIUM_CROSSINGS
-    .map(c => ({ ...c, hDist: haversineKm(userLat, userLng, c.lat, c.lng) }))
-    .sort((a, b) => a.hDist - b.hDist)
-    .slice(0, 4);
+  // Take the 7 closest overall (no artificial DE/BE split)
+  // For Middelburg → all 7 will be Belgian; for Venlo → mostly German
+  const candidates = allCrossings.slice(0, 7);
 
   onProgress?.('Routes naar grensovergangen berekenen...');
 
-  // Route to all crossings in parallel
-  const [deRouteResults, beRouteResults] = await Promise.all([
-    Promise.all(closestDE.map(async (c) => {
+  // Route to all candidates in parallel
+  const routeResults = await Promise.all(
+    candidates.map(async (c) => {
       const route = await fetchRoute(userLat, userLng, c.lat, c.lng);
       return route ? { crossing: c, route } as CrossingRoute : null;
-    })),
-    Promise.all(closestBE.map(async (c) => {
-      const route = await fetchRoute(userLat, userLng, c.lat, c.lng);
-      return route ? { crossing: c, route } as CrossingRoute : null;
-    })),
-  ]);
+    })
+  );
 
-  const topDE = deRouteResults
+  const validCrossings = routeResults
     .filter((x): x is CrossingRoute => x !== null)
     .sort((a, b) => a.route.durationMin - b.route.durationMin)
-    .slice(0, 4);
+    .slice(0, 6);
 
-  const topBE = beRouteResults
-    .filter((x): x is CrossingRoute => x !== null)
-    .sort((a, b) => a.route.durationMin - b.route.durationMin)
-    .slice(0, 3);
+  if (!validCrossings.length) return [];
 
-  if (!topDE.length && !topBE.length) return [];
+  onProgress?.('Stations ophalen bij grensovergangen...');
 
-  onProgress?.('Duitsland + België stations ophalen...');
-
-  // Fetch DE (Tankerkönig) and BE (Overpass) stations in parallel
-  const [deBatches, beBatches] = await Promise.all([
-    Promise.all(topDE.map(async (cr) => {
-      const stations = await fetchGermanStations(cr.crossing.lat, cr.crossing.lng, 10, 'all');
+  // Fetch stations for each crossing in parallel, dispatching by country
+  const batches = await Promise.all(
+    validCrossings.map(async (cr) => {
+      const stations = cr.crossing.country === 'BE'
+        ? await fetchBelgianStations(cr.crossing.lat, cr.crossing.lng, 12)
+        : await fetchGermanStations(cr.crossing.lat, cr.crossing.lng, 10, 'all');
       return stations.map(s => ({ station: s, crossing: cr }) as StationOption);
-    })),
-    Promise.all(topBE.map(async (cr) => {
-      const stations = await fetchBelgianStations(cr.crossing.lat, cr.crossing.lng, 12);
-      return stations.map(s => ({ station: s, crossing: cr }) as StationOption);
-    })),
-  ]);
+    })
+  );
 
   // Deduplicate: keep each station from its fastest crossing
   const seen = new Map<string, StationOption>();
-  for (const opt of [...deBatches.flat(), ...beBatches.flat()]) {
+  for (const opt of batches.flat()) {
     const existing = seen.get(opt.station.id);
     if (!existing || opt.crossing.route.durationMin < existing.crossing.route.durationMin) {
       seen.set(opt.station.id, opt);
