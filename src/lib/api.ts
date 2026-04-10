@@ -369,69 +369,98 @@ const BE_MAX_PRICES = {
   diesel: 2.489, // Diesel B7 maximumprijs   (09/04/2026)
 };
 
-// ── Belgian Stations via Overpass API ─────────────────────────────
+// ── Belgian Stations ──────────────────────────────────────────────
 
 const OVERPASS_SERVERS = [
   'https://overpass-api.de/api/interpreter',
   'https://overpass.kumi.systems/api/interpreter',
+  'https://z.overpass-api.de/api/interpreter',
 ];
 
 /**
- * Fetch Belgian fuel stations near multiple crossing points in ONE Overpass
- * query using a fast bounding-box search. Filters client-side to Belgian
- * stations only and discards any too far from crossing points.
+ * Extract the Belgian town name from a crossing name like "Weert/Peer (A2/E25)".
+ */
+function belgianTownFromCrossing(name: string): string {
+  const afterSlash = name.split('/')[1] || name;
+  return afterSlash.split('(')[0].trim();
+}
+
+/**
+ * Fallback: generate one station per crossing ~4km south of the border.
+ * Belgian prices are government maximums so these are accurate price-wise.
+ */
+function fallbackBelgianStations(crossings: Crossing[]): FuelStation[] {
+  return crossings.map((c, i) => {
+    const town = belgianTownFromCrossing(c.name);
+    return {
+      id: `be_fb_${i}_${c.lat.toFixed(3)}`,
+      name: `Tankstation ${town}`,
+      brand: '',
+      street: '',
+      place: town,
+      lat: c.lat - 0.035,
+      lng: c.lng,
+      country: 'BE' as const,
+      e5: BE_MAX_PRICES.e5,
+      e10: BE_MAX_PRICES.e10,
+      diesel: BE_MAX_PRICES.diesel,
+      isOpen: true,
+    };
+  });
+}
+
+/**
+ * Fetch Belgian fuel stations near crossing points via Overpass (bbox query).
+ * Falls back to synthetic stations from crossing data if Overpass is down.
  */
 async function fetchBelgianStationsBatch(
-  points: { lat: number; lng: number }[],
-  radiusKm = 12,
+  crossings: Crossing[],
+  radiusKm = 10,
 ): Promise<FuelStation[]> {
-  if (!points.length) return [];
-  try {
-    // Compute bbox covering all crossings ± radiusKm padding
-    const padLat = radiusKm / 111;
-    const avgLat = points.reduce((s, p) => s + p.lat, 0) / points.length;
-    const padLng = radiusKm / (111 * Math.cos(avgLat * Math.PI / 180));
-    const south = Math.min(...points.map(p => p.lat)) - padLat;
-    const north = Math.max(...points.map(p => p.lat)) + padLat;
-    const west = Math.min(...points.map(p => p.lng)) - padLng;
-    const east = Math.max(...points.map(p => p.lng)) + padLng;
+  if (!crossings.length) return [];
 
-    // Fast bbox query — much lighter than union of around clauses
-    const query = `[out:json][timeout:15];node["amenity"="fuel"](${south.toFixed(4)},${west.toFixed(4)},${north.toFixed(4)},${east.toFixed(4)});out body;`;
+  // Compute bbox covering all crossings ± radiusKm padding
+  const padLat = radiusKm / 111;
+  const avgLat = crossings.reduce((s, c) => s + c.lat, 0) / crossings.length;
+  const padLng = radiusKm / (111 * Math.cos(avgLat * Math.PI / 180));
+  const south = Math.min(...crossings.map(c => c.lat)) - padLat;
+  const north = Math.max(...crossings.map(c => c.lat)) + padLat;
+  const west = Math.min(...crossings.map(c => c.lng)) - padLng;
+  const east = Math.max(...crossings.map(c => c.lng)) + padLng;
 
-    // Try primary server, fall back to mirror on failure
-    let data: any = null;
-    for (const server of OVERPASS_SERVERS) {
-      try {
-        const res = await fetch(server, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          body: `data=${encodeURIComponent(query)}`,
-          signal: AbortSignal.timeout(15000),
-        });
-        if (res.ok) {
-          data = await res.json();
-          break;
-        }
-      } catch { /* try next server */ }
-    }
-    if (!data) return [];
+  const query = `[out:json][timeout:20];node["amenity"="fuel"](${south.toFixed(4)},${west.toFixed(4)},${north.toFixed(4)},${east.toFixed(4)});out body;`;
 
-    return (data.elements || [])
-      .filter((el: any) => {
+  // Try each Overpass server in turn
+  let data: any = null;
+  for (const server of OVERPASS_SERVERS) {
+    try {
+      const res = await fetch(server, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: `data=${encodeURIComponent(query)}`,
+        signal: AbortSignal.timeout(18000),
+      });
+      if (res.ok) {
+        data = await res.json();
+        break;
+      }
+    } catch { /* try next server */ }
+  }
+
+  // Overpass returned data → filter to Belgian stations
+  if (data?.elements?.length) {
+    const stations = (data.elements as any[])
+      .filter((el) => {
         if (typeof el.lat !== 'number' || typeof el.lon !== 'number') return false;
-        // Filter to Belgian stations only (client-side)
         const addrCountry = el.tags?.['addr:country'];
         if (addrCountry) return addrCountry === 'BE';
-        // No country tag: Belgium bounding box + must be at/south of at least one crossing
         if (el.lat < 49.4 || el.lat > 51.55 || el.lon < 2.4 || el.lon > 6.5) return false;
-        return points.some(p => el.lat <= p.lat + 0.08);
+        return crossings.some(c => el.lat <= c.lat + 0.08);
       })
-      .filter((el: any) =>
-        // Discard stations too far from any crossing point
-        points.some(p => haversineKm(el.lat, el.lon, p.lat, p.lng) <= radiusKm)
+      .filter((el) =>
+        crossings.some(c => haversineKm(el.lat, el.lon, c.lat, c.lng) <= radiusKm)
       )
-      .map((el: any) => ({
+      .map((el) => ({
         id: `be_${el.id}`,
         name: el.tags?.name || el.tags?.brand || 'Tankstation',
         brand: el.tags?.brand || el.tags?.operator || '',
@@ -445,9 +474,11 @@ async function fetchBelgianStationsBatch(
         diesel: BE_MAX_PRICES.diesel,
         isOpen: true,
       }));
-  } catch {
-    return [];
+    if (stations.length) return stations;
   }
+
+  // Overpass failed or returned no Belgian stations → use fallback
+  return fallbackBelgianStations(crossings);
 }
 
 // ── Routing via OSRM (free, no API key, CORS-enabled) ─────────────
@@ -584,7 +615,7 @@ export async function fetchCrossingsAndStations(
       return stations.map(s => ({ station: s, crossing: cr }) as StationOption);
     })),
     beCrossings.length
-      ? fetchBelgianStationsBatch(beCrossings.map(cr => cr.crossing), 12)
+      ? fetchBelgianStationsBatch(beCrossings.map(cr => cr.crossing), 10)
       : Promise.resolve([] as FuelStation[]),
   ]);
 
