@@ -386,8 +386,10 @@ function belgianTownFromCrossing(name: string): string {
 }
 
 /**
- * Fallback: generate one station per crossing ~4km south of the border.
+ * Fallback: generate one station per crossing ~10km south of the border.
  * Belgian prices are government maximums so these are accurate price-wise.
+ * Offset 0.09° (~10km) ensures we clear the NL-BE border even when the
+ * crossing coordinate is placed at the Dutch town (not the actual border).
  */
 function fallbackBelgianStations(crossings: Crossing[]): FuelStation[] {
   return crossings.map((c, i) => {
@@ -398,7 +400,7 @@ function fallbackBelgianStations(crossings: Crossing[]): FuelStation[] {
       brand: '',
       street: '',
       place: town,
-      lat: c.lat - 0.035,
+      lat: c.lat - 0.09,   // ~10km south — reliably inside Belgium
       lng: c.lng,
       country: 'BE' as const,
       e5: BE_MAX_PRICES.e5,
@@ -428,7 +430,12 @@ async function fetchBelgianStationsBatch(
   const west = Math.min(...crossings.map(c => c.lng)) - padLng;
   const east = Math.max(...crossings.map(c => c.lng)) + padLng;
 
-  const query = `[out:json][timeout:20];node["amenity"="fuel"](${south.toFixed(4)},${west.toFixed(4)},${north.toFixed(4)},${east.toFixed(4)});out body;`;
+  // Server-side ["addr:country"="BE"] filter: only returns stations explicitly
+  // tagged as Belgian in OSM — eliminates all NL false positives regardless of
+  // client-side heuristics. Crossing coords are placed at Dutch towns (5-6km
+  // inside NL), so bbox is padded an extra 15km south to cover Belgian stations.
+  const extraSouth = 15 / 111;
+  const query = `[out:json][timeout:20];node["amenity"="fuel"]["addr:country"="BE"](${(south - extraSouth).toFixed(4)},${west.toFixed(4)},${north.toFixed(4)},${east.toFixed(4)});out body;`;
 
   // Try each Overpass server in turn
   let data: any = null;
@@ -447,19 +454,10 @@ async function fetchBelgianStationsBatch(
     } catch { /* try next server */ }
   }
 
-  // Overpass returned data → filter to Belgian stations
+  // Overpass returned BE-tagged stations — no client-side country filter needed
   if (data?.elements?.length) {
     const stations = (data.elements as any[])
-      .filter((el) => {
-        if (typeof el.lat !== 'number' || typeof el.lon !== 'number') return false;
-        const addrCountry = el.tags?.['addr:country'];
-        if (addrCountry) return addrCountry === 'BE';
-        if (el.lat < 49.4 || el.lat > 51.55 || el.lon < 2.4 || el.lon > 6.5) return false;
-        return crossings.some(c => el.lat <= c.lat + 0.08);
-      })
-      .filter((el) =>
-        crossings.some(c => haversineKm(el.lat, el.lon, c.lat, c.lng) <= radiusKm)
-      )
+      .filter((el) => typeof el.lat === 'number' && typeof el.lon === 'number')
       .map((el) => ({
         id: `be_${el.id}`,
         name: el.tags?.name || el.tags?.brand || 'Tankstation',
@@ -619,13 +617,17 @@ export async function fetchCrossingsAndStations(
       : Promise.resolve([] as FuelStation[]),
   ]);
 
-  // Associate each BE station with its nearest crossing (by haversine)
+  // Associate each BE station with the crossing that minimises total trip
+  // (home→crossing + crossing→station). Crossing coords sit at the Dutch
+  // town (5-6km inside NL), so station→crossing haversine can be 10-20km
+  // for a station that's only 5km from the actual border.
   const beOptions: StationOption[] = beStations.map(s => {
     let bestCr = beCrossings[0];
-    let bestDist = Infinity;
+    let bestTotal = Infinity;
     for (const cr of beCrossings) {
-      const d = haversineKm(s.lat, s.lng, cr.crossing.lat, cr.crossing.lng);
-      if (d < bestDist) { bestDist = d; bestCr = cr; }
+      const dCross = haversineKm(s.lat, s.lng, cr.crossing.lat, cr.crossing.lng);
+      const total = cr.route.durationMin + dCross; // time + dist proxy
+      if (total < bestTotal) { bestTotal = total; bestCr = cr; }
     }
     return { station: s, crossing: bestCr };
   });
