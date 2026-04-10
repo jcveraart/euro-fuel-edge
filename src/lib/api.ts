@@ -371,9 +371,15 @@ const BE_MAX_PRICES = {
 
 // ── Belgian Stations via Overpass API ─────────────────────────────
 
+const OVERPASS_SERVERS = [
+  'https://overpass-api.de/api/interpreter',
+  'https://overpass.kumi.systems/api/interpreter',
+];
+
 /**
  * Fetch Belgian fuel stations near multiple crossing points in ONE Overpass
- * query (union of around clauses). Avoids 429 rate-limits from parallel calls.
+ * query using a fast bounding-box search. Filters client-side to Belgian
+ * stations only and discards any too far from crossing points.
  */
 async function fetchBelgianStationsBatch(
   points: { lat: number; lng: number }[],
@@ -381,20 +387,36 @@ async function fetchBelgianStationsBatch(
 ): Promise<FuelStation[]> {
   if (!points.length) return [];
   try {
-    const radiusM = radiusKm * 1000;
-    // Single query: union of around clauses — Overpass deduplicates automatically
-    const aroundClauses = points
-      .map(p => `node["amenity"="fuel"](around:${radiusM},${p.lat},${p.lng});`)
-      .join('');
-    const query = `[out:json][timeout:20];(${aroundClauses});out body;`;
-    const res = await fetch('https://overpass-api.de/api/interpreter', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: `data=${encodeURIComponent(query)}`,
-      signal: AbortSignal.timeout(20000),
-    });
-    if (!res.ok) return [];
-    const data = await res.json();
+    // Compute bbox covering all crossings ± radiusKm padding
+    const padLat = radiusKm / 111;
+    const avgLat = points.reduce((s, p) => s + p.lat, 0) / points.length;
+    const padLng = radiusKm / (111 * Math.cos(avgLat * Math.PI / 180));
+    const south = Math.min(...points.map(p => p.lat)) - padLat;
+    const north = Math.max(...points.map(p => p.lat)) + padLat;
+    const west = Math.min(...points.map(p => p.lng)) - padLng;
+    const east = Math.max(...points.map(p => p.lng)) + padLng;
+
+    // Fast bbox query — much lighter than union of around clauses
+    const query = `[out:json][timeout:15];node["amenity"="fuel"](${south.toFixed(4)},${west.toFixed(4)},${north.toFixed(4)},${east.toFixed(4)});out body;`;
+
+    // Try primary server, fall back to mirror on failure
+    let data: any = null;
+    for (const server of OVERPASS_SERVERS) {
+      try {
+        const res = await fetch(server, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: `data=${encodeURIComponent(query)}`,
+          signal: AbortSignal.timeout(15000),
+        });
+        if (res.ok) {
+          data = await res.json();
+          break;
+        }
+      } catch { /* try next server */ }
+    }
+    if (!data) return [];
+
     return (data.elements || [])
       .filter((el: any) => {
         if (typeof el.lat !== 'number' || typeof el.lon !== 'number') return false;
@@ -405,6 +427,10 @@ async function fetchBelgianStationsBatch(
         if (el.lat < 49.4 || el.lat > 51.55 || el.lon < 2.4 || el.lon > 6.5) return false;
         return points.some(p => el.lat <= p.lat + 0.08);
       })
+      .filter((el: any) =>
+        // Discard stations too far from any crossing point
+        points.some(p => haversineKm(el.lat, el.lon, p.lat, p.lng) <= radiusKm)
+      )
       .map((el: any) => ({
         id: `be_${el.id}`,
         name: el.tags?.name || el.tags?.brand || 'Tankstation',
